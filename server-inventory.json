@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Inventory of Very Good Plugins MCP servers",
+  "lastUpdated": "2025-12-25",
+  "servers": [
+    {
+      "name": "mcp-automem",
+      "type": "typescript",
+      "description": "Graph-vector memory for AI assistants",
+      "github": "https://github.com/verygoodplugins/mcp-automem",
+      "npm": "@verygoodplugins/mcp-automem",
+      "mcpRegistry": "io.github.verygoodplugins/mcp-automem",
+      "status": "published",
+      "cicd": true,
+      "tests": true,
+      "securityScanning": true
+    },
+    {
+      "name": "mcp-evernote",
+      "type": "typescript",
+      "description": "Evernote note management and synchronization",
+      "github": "https://github.com/verygoodplugins/mcp-evernote",
+      "npm": "@verygoodplugins/mcp-evernote",
+      "mcpRegistry": null,
+      "status": "published",
+      "cicd": true,
+      "tests": true,
+      "securityScanning": false
+    },
+    {
+      "name": "mcp-freescout",
+      "type": "typescript",
+      "description": "FreeScout helpdesk ticket management",
+      "github": "https://github.com/verygoodplugins/mcp-freescout",
+      "npm": "@verygoodplugins/mcp-freescout",
+      "mcpRegistry": null,
+      "status": "published",
+      "cicd": false,
+      "tests": true,
+      "securityScanning": false
+    },
+    {
+      "name": "mcp-local-wp",
+      "type": "typescript",
+      "description": "WordPress database access via Local by Flywheel",
+      "github": "https://github.com/verygoodplugins/mcp-local-wp",
+      "npm": "@verygoodplugins/mcp-local-wp",
+      "mcpRegistry": null,
+      "status": "published",
+      "cicd": false,
+      "tests": false,
+      "securityScanning": false
+    },
+    {
+      "name": "mcp-pirsch",
+      "type": "typescript",
+      "description": "Pirsch Analytics integration",
+      "github": "https://github.com/verygoodplugins/mcp-pirsch",
+      "npm": "@verygoodplugins/mcp-pirsch",
+      "mcpRegistry": null,
+      "status": "published",
+      "cicd": false,
+      "tests": false,
+      "securityScanning": false
+    },
+    {
+      "name": "mcp-toggl",
+      "type": "typescript",
+      "description": "Toggl Track time tracking integration",
+      "github": "https://github.com/verygoodplugins/mcp-toggl",
+      "npm": "@verygoodplugins/mcp-toggl",
+      "mcpRegistry": null,
+      "status": "published",
+      "cicd": false,
+      "tests": false,
+      "securityScanning": false
+    },
+    {
+      "name": "mcp-ical",
+      "type": "python",
+      "description": "macOS Calendar CRUD operations",
+      "github": null,
+      "pypi": null,
+      "mcpRegistry": null,
+      "status": "local",
+      "cicd": false,
+      "tests": true,
+      "securityScanning": false
+    },
+    {
+      "name": "telegram-mcp",
+      "type": "python",
+      "description": "Telegram messaging integration",
+      "github": null,
+      "pypi": null,
+      "mcpRegistry": null,
+      "status": "local",
+      "cicd": true,
+      "tests": true,
+      "securityScanning": false
+    },
+    {
+      "name": "whatsapp-mcp",
+      "type": "python",
+      "description": "WhatsApp messaging integration",
+      "github": null,
+      "pypi": null,
+      "mcpRegistry": null,
+      "status": "local",
+      "cicd": false,
+      "tests": false,
+      "securityScanning": false
+    },
+    {
+      "name": "streamdeck-mcp",
+      "type": "python",
+      "description": "Elgato Stream Deck USB control",
+      "github": null,
+      "pypi": null,
+      "mcpRegistry": null,
+      "status": "local",
+      "cicd": false,
+      "tests": true,
+      "securityScanning": false
+    }
+  ]
+}
