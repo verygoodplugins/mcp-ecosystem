@@ -45,7 +45,7 @@
       "description": "WordPress database access via Local by Flywheel",
       "github": "https://github.com/verygoodplugins/mcp-local-wp",
       "npm": "@verygoodplugins/mcp-local-wp",
-      "mcpRegistry": null,
+      "mcpRegistry": "io.github.verygoodplugins/mcp-local-wp",
       "status": "published",
       "cicd": true,
       "tests": true,

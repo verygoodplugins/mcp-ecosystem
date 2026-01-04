@@ -1,0 +1,28 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.verygoodplugins/mcp-{name}",
+  "title": "MCP {Name}",
+  "description": "{Brief description under 100 characters}",
+  "version": "1.0.0",
+  "websiteUrl": "https://verygoodplugins.com/?utm_source=mcp-registry",
+  "repository": {
+    "url": "https://github.com/verygoodplugins/mcp-{name}",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@verygoodplugins/mcp-{name}",
+      "version": "1.0.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ],
+  "tools": [
+    {
+      "name": "example_tool",
+      "description": "Description of what this tool does"
+    }
+  ]
+}

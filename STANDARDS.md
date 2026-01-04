@@ -351,23 +351,48 @@ updates:
 
 ## MCP Registry Requirements
 
-### server.json
+### server.json (2025-12-11 schema)
 
 ```json
 {
-  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.verygoodplugins/mcp-{name}",
-  "description": "Brief description",
+  "title": "MCP {Name}",
+  "description": "Brief description under 100 characters",
   "version": "1.0.0",
+  "websiteUrl": "https://verygoodplugins.com/?utm_source=mcp-registry",
+  "repository": {
+    "url": "https://github.com/verygoodplugins/mcp-{name}",
+    "source": "github"
+  },
   "packages": [
     {
-      "registry_type": "npm",
+      "registryType": "npm",
       "identifier": "@verygoodplugins/mcp-{name}",
-      "version": "1.0.0"
+      "version": "1.0.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ],
+  "tools": [
+    {
+      "name": "tool_name",
+      "description": "What this tool does"
     }
   ]
 }
 ```
+
+**Key requirements:**
+- Schema must be `2025-12-11` (not older versions)
+- All field names are camelCase (`registryType`, not `registry_type`)
+- `repository.source` must be `"github"` (not `type: "git"`)
+- `transport` must be an object: `{ "type": "stdio" }`
+- `description` must be under 100 characters
+- `title` is recommended for display name
+- `websiteUrl` at root level (replaces author.url)
+- `tools` array documents available tools
 
 ### Package Linking
 

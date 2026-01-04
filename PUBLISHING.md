@@ -122,24 +122,60 @@ Releases are automatic via release-please:
 
 ## MCP Registry Publishing
 
+### First-Time Setup (One-Time)
+
+1. **Clone and build the MCP Publisher CLI**:
+   ```bash
+   git clone https://github.com/modelcontextprotocol/registry ~/mcp-registry
+   cd ~/mcp-registry
+   make publisher
+   ```
+
+2. **Add to PATH** (optional):
+   ```bash
+   # Add to ~/.zshrc or ~/.bashrc
+   export PATH="$HOME/mcp-registry/bin:$PATH"
+   ```
+
 ### First-Time Registration
 
-1. **Create `server.json`**:
+1. **Create `server.json`** (use 2025-12-11 schema):
    ```json
    {
-     "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
+     "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
      "name": "io.github.verygoodplugins/mcp-{name}",
-     "description": "Brief description of what this server does",
+     "title": "MCP {Name}",
+     "description": "Brief description under 100 characters",
      "version": "1.0.0",
+     "websiteUrl": "https://verygoodplugins.com/?utm_source=mcp-registry",
+     "repository": {
+       "url": "https://github.com/verygoodplugins/mcp-{name}",
+       "source": "github"
+     },
      "packages": [
        {
-         "registry_type": "npm",
+         "registryType": "npm",
          "identifier": "@verygoodplugins/mcp-{name}",
-         "version": "1.0.0"
+         "version": "1.0.0",
+         "transport": {
+           "type": "stdio"
+         }
+       }
+     ],
+     "tools": [
+       {
+         "name": "tool_name",
+         "description": "What this tool does"
        }
      ]
    }
    ```
+
+   **Critical requirements:**
+   - `repository.source` must be `"github"` (not `type: "git"`)
+   - `transport` must be object: `{ "type": "stdio" }`
+   - All field names are camelCase (`registryType` not `registry_type`)
+   - `description` must be under 100 characters
 
 2. **Add mcpName to package**:
 
@@ -156,17 +192,18 @@ Releases are automatic via release-please:
    name = "io.github.verygoodplugins/mcp-{name}"
    ```
 
-3. **Publish package first** (must be publicly accessible)
+3. **Publish package first** (must be publicly accessible on npm/PyPI)
 
 4. **Submit to registry**:
    ```bash
-   npx @anthropic-ai/mcp publish server.json
+   cd /path/to/your/server
+   ~/mcp-registry/bin/mcp-publisher publish server.json
    ```
 
    This will:
-   - Validate your server.json
-   - Authenticate via GitHub OAuth
-   - Submit to the registry
+   - Validate your server.json against the schema
+   - Authenticate via GitHub OAuth (opens browser)
+   - Submit to the MCP Registry
 
 ### Updating Registry Entry
 
@@ -176,7 +213,7 @@ When you release a new version:
 2. Ensure package is published to npm/PyPI
 3. Re-run the publish command:
    ```bash
-   npx @anthropic-ai/mcp publish server.json
+   ~/mcp-registry/bin/mcp-publisher publish server.json
    ```
 
 ---
