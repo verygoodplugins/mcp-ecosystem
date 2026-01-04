@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "Inventory of Very Good Plugins MCP servers",
-  "lastUpdated": "2025-12-25",
+  "lastUpdated": "2026-01-04",
   "servers": [
     {
       "name": "mcp-automem",
@@ -25,7 +25,7 @@
       "status": "published",
       "cicd": true,
       "tests": true,
-      "securityScanning": false
+      "securityScanning": true
     },
     {
       "name": "mcp-freescout",
@@ -35,9 +35,9 @@
       "npm": "@verygoodplugins/mcp-freescout",
       "mcpRegistry": null,
       "status": "published",
-      "cicd": false,
+      "cicd": true,
       "tests": true,
-      "securityScanning": false
+      "securityScanning": true
     },
     {
       "name": "mcp-local-wp",
@@ -47,9 +47,9 @@
       "npm": "@verygoodplugins/mcp-local-wp",
       "mcpRegistry": null,
       "status": "published",
-      "cicd": false,
-      "tests": false,
-      "securityScanning": false
+      "cicd": true,
+      "tests": true,
+      "securityScanning": true
     },
     {
       "name": "mcp-pirsch",
@@ -59,9 +59,9 @@
       "npm": "@verygoodplugins/mcp-pirsch",
       "mcpRegistry": null,
       "status": "published",
-      "cicd": false,
-      "tests": false,
-      "securityScanning": false
+      "cicd": true,
+      "tests": true,
+      "securityScanning": true
     },
     {
       "name": "mcp-toggl",
@@ -71,9 +71,9 @@
       "npm": "@verygoodplugins/mcp-toggl",
       "mcpRegistry": null,
       "status": "published",
-      "cicd": false,
-      "tests": false,
-      "securityScanning": false
+      "cicd": true,
+      "tests": true,
+      "securityScanning": true
     },
     {
       "name": "mcp-ical",

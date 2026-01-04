@@ -110,6 +110,19 @@ if [[ "$SERVER_TYPE" == "typescript" ]]; then
         echo "❌ test script missing"
         ((ERRORS++))
     fi
+
+    # Check package-lock.json exists and is not gitignored (required for npm ci)
+    if [[ -f "$SERVER_PATH/package-lock.json" ]]; then
+        if [[ -f "$SERVER_PATH/.gitignore" ]] && grep -q '^package-lock.json$' "$SERVER_PATH/.gitignore"; then
+            echo "❌ package-lock.json is gitignored (CI will fail)"
+            ((ERRORS++))
+        else
+            echo "✅ package-lock.json exists and tracked"
+        fi
+    else
+        echo "❌ package-lock.json missing (required for npm ci)"
+        ((ERRORS++))
+    fi
 else
     # Check pyproject.toml fields
     if grep -q '\[tool.mcp\]' "$SERVER_PATH/pyproject.toml"; then
@@ -160,6 +173,16 @@ if [[ -f "$SERVER_PATH/.gitignore" ]] && grep -q '.env' "$SERVER_PATH/.gitignore
 else
     echo "⚠️  .env may not be in .gitignore"
     ((WARNINGS++))
+fi
+
+# Check CodeQL action version (v4 required, v3 deprecated Dec 2026)
+if [[ -f "$SERVER_PATH/.github/workflows/security.yml" ]]; then
+    if grep -q 'codeql-action/.*@v3' "$SERVER_PATH/.github/workflows/security.yml"; then
+        echo "⚠️  CodeQL Action v3 deprecated (update to v4)"
+        ((WARNINGS++))
+    elif grep -q 'codeql-action/.*@v4' "$SERVER_PATH/.github/workflows/security.yml"; then
+        echo "✅ CodeQL Action v4 (current)"
+    fi
 fi
 
 echo ""
