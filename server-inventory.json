@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "Inventory of Very Good Plugins MCP servers",
-  "lastUpdated": "2026-01-06",
+  "lastUpdated": "2026-01-09",
   "servers": [
     {
       "name": "mcp-automem",
@@ -53,7 +53,7 @@
     },
     {
       "name": "mcp-pirsch",
-      "type": "typescript",
+      "type": "javascript",
       "description": "Pirsch Analytics integration",
       "github": "https://github.com/verygoodplugins/mcp-pirsch",
       "npm": "@verygoodplugins/mcp-pirsch",
@@ -76,50 +76,38 @@
       "securityScanning": true
     },
     {
-      "name": "mcp-ical",
-      "type": "python",
-      "description": "macOS Calendar CRUD operations",
-      "github": null,
-      "pypi": null,
+      "name": "mcp-wp",
+      "type": "typescript",
+      "description": "WordPress REST API integration",
+      "github": "https://github.com/verygoodplugins/mcp-wp",
+      "npm": null,
       "mcpRegistry": null,
-      "status": "local",
+      "status": "development",
       "cicd": false,
-      "tests": true,
-      "securityScanning": false
-    },
-    {
-      "name": "telegram-mcp",
-      "type": "python",
-      "description": "Telegram messaging integration",
-      "github": null,
-      "pypi": null,
-      "mcpRegistry": null,
-      "status": "local",
-      "cicd": true,
-      "tests": true,
+      "tests": false,
       "securityScanning": false
     },
     {
       "name": "whatsapp-mcp",
       "type": "python",
       "description": "WhatsApp messaging integration",
-      "github": null,
+      "github": "https://github.com/verygoodplugins/whatsapp-mcp",
       "pypi": null,
       "mcpRegistry": null,
-      "status": "local",
-      "cicd": false,
+      "status": "published",
+      "cicd": true,
       "tests": false,
-      "securityScanning": false
+      "securityScanning": true
     },
     {
       "name": "streamdeck-mcp",
       "type": "python",
       "description": "Elgato Stream Deck USB control",
-      "github": null,
-      "pypi": null,
+      "github": "https://github.com/verygoodplugins/streamdeck-mcp",
+      "pypi": "streamdeck-mcp",
       "mcpRegistry": null,
-      "status": "local",
-      "cicd": false,
+      "status": "published",
+      "cicd": true,
       "tests": true,
       "securityScanning": false
     },

@@ -8,7 +8,7 @@ This document defines the coding standards for all Very Good Plugins MCP servers
 
 - **Node.js:** ≥18.0.0
 - **TypeScript:** ES2022 target, strict mode
-- **MCP SDK:** @modelcontextprotocol/sdk ^0.5.0 (or ^1.x for new servers)
+- **MCP SDK:** @modelcontextprotocol/sdk ^1.25.1
 - **Package Manager:** npm
 - **Module System:** ES modules (`"type": "module"`)
 
@@ -99,6 +99,47 @@ server-name/
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
+}
+```
+
+### ESLint 9 Flat Config (eslint.config.mjs)
+
+All TypeScript servers should use ESLint 9 with flat config:
+
+```javascript
+import eslint from '@eslint/js';
+import tseslint from 'typescript-eslint';
+import prettier from 'eslint-config-prettier';
+
+export default tseslint.config(
+  eslint.configs.recommended,
+  ...tseslint.configs.recommended,
+  prettier,
+  {
+    ignores: ['dist/', 'node_modules/', 'coverage/'],
+  },
+  {
+    files: ['src/**/*.ts'],
+    languageOptions: {
+      parserOptions: {
+        project: './tsconfig.json',
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      '@typescript-eslint/no-explicit-any': 'warn',
+    },
+  }
+);
+```
+
+**Required devDependencies:**
+```json
+{
+  "@eslint/js": "^9.0.0",
+  "typescript-eslint": "^8.0.0",
+  "eslint-config-prettier": "^10.0.0"
 }
 ```
 
@@ -452,6 +493,74 @@ async def test_tool_handler():
     # Test implementation
     pass
 ```
+
+---
+
+## Tool Schema Best Practices
+
+### Handling External API Data
+
+When tools interact with external APIs, response data may have optional or undefined fields. Avoid strict `outputSchema` definitions that cause validation errors when APIs return incomplete data.
+
+**Problem:**
+```typescript
+// This causes "expected X, received undefined" errors
+outputSchema: {
+  type: 'object',
+  properties: {
+    id: { type: 'number' },
+    email: { type: 'string' },  // API sometimes doesn't return this
+    metadata: { type: 'object' }  // API sometimes returns null
+  },
+  required: ['id', 'email', 'metadata']
+}
+```
+
+**Solutions:**
+
+1. **Omit outputSchema entirely** for tools returning unpredictable external data:
+```typescript
+// Let the response pass through without validation
+{
+  name: 'get_external_data',
+  description: 'Fetches data from external API',
+  inputSchema: { /* validated inputs */ }
+  // No outputSchema - response is unvalidated
+}
+```
+
+2. **Use loose schemas** with optional fields:
+```typescript
+outputSchema: {
+  type: 'object',
+  properties: {
+    id: { type: 'number' },
+    email: { type: ['string', 'null'] },
+    metadata: {}  // Accept any type
+  },
+  required: ['id']  // Only require guaranteed fields
+}
+```
+
+3. **Validate and transform** in your handler before returning:
+```typescript
+const response = await api.getData();
+return {
+  id: response.id,
+  email: response.email ?? null,
+  metadata: response.metadata ?? {}
+};
+```
+
+**When to use outputSchema:**
+- Internal tools with predictable, controlled responses
+- Tools that transform data into a known structure
+- Simple tools returning primitive types
+
+**When to omit outputSchema:**
+- External API integrations with variable responses
+- Tools that pass through third-party data structures
+- Search/list tools returning different result shapes
 
 ---
 
