@@ -342,14 +342,67 @@ npm run dev
 npm test
 \`\`\`
 
-## License
+## Support
 
-MIT
+For issues, questions, or suggestions:
 
-## Links
+- [Open an issue on GitHub](https://github.com/verygoodplugins/mcp-{name}/issues)
+- [Contact Very Good Plugins](https://verygoodplugins.com/contact/?utm_source=github)
 
-- [Very Good Plugins](https://verygoodplugins.com/?utm_source=github)
-- [MCP Registry](https://modelcontextprotocol.info/)
+---
+
+Built with 🧡 by [Very Good Plugins](https://verygoodplugins.com/?utm_source=github)
+```
+
+### README Style Guidelines
+
+#### Footer Section (Required)
+
+All READMEs must end with a Support section and VGP footer:
+
+```markdown
+## Support
+
+For issues, questions, or suggestions:
+
+- [Open an issue on GitHub](https://github.com/verygoodplugins/mcp-{name}/issues)
+- [Contact Very Good Plugins](https://verygoodplugins.com/contact/?utm_source=github)
+
+---
+
+Built with 🧡 by [Very Good Plugins](https://verygoodplugins.com/?utm_source=github)
+```
+
+**Key requirements:**
+- Orange heart emoji (🧡) - consistent VGP branding
+- All links include `?utm_source=github` tracking
+- Contact link goes to `/contact/` page (not homepage)
+- Horizontal rule before the "Built with" line
+
+#### Feature Emojis (Optional)
+
+Feature lists may use emojis for visual appeal in the Features section:
+
+| Emoji | Use Case |
+|-------|----------|
+| 🎫 | Tickets, items, records |
+| 🔍 | Search, analysis, lookup |
+| 💬 | Communication, messaging, notes |
+| 📊 | Analytics, stats, reporting |
+| 🔒 | Security, authentication |
+| ⚡ | Performance, speed |
+| 📥 | Downloads, imports |
+| 👥 | Users, customers |
+| 🛍️ | Products, purchases, commerce |
+| 🏷️ | Tags, labels, discounts |
+
+Example:
+```markdown
+## Features
+
+- 📊 **Sales Analytics** - Revenue, transaction counts, date ranges
+- 👥 **Customer Data** - Purchase history, lifetime value
+- 🛍️ **Product Catalog** - Pricing tiers, licensing info
 ```
 
 ---
