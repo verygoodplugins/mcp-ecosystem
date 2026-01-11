@@ -5,6 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Repository Purpose
 
 This is the **mcp-ecosystem** repository - shared infrastructure, templates, and standards for Very Good Plugins MCP servers. It provides:
+
 - Complete project scaffolding for TypeScript and Python MCP servers
 - GitHub Actions workflow templates
 - Audit and template-application scripts
@@ -77,12 +78,14 @@ The fastest way to create a new server:
 ```
 
 This will:
+
 1. Create `../mcp-myservice/` with full project structure
 2. Substitute all placeholders (`{name}`, `{description}`, etc.)
 3. Initialize git repository
 4. Install npm dependencies
 
 Then:
+
 1. `cd ../mcp-myservice`
 2. Edit `src/index.ts` to implement your tools
 3. Update `server.json` with your tools list
@@ -92,6 +95,7 @@ Then:
 ## Key Standards (from STANDARDS.md)
 
 **TypeScript servers:**
+
 - Node.js ≥18, ES2022, strict mode
 - MCP SDK ^1.25.1
 - Package naming: `@verygoodplugins/mcp-{name}`
@@ -101,19 +105,22 @@ Then:
 - Release automation: release-please with OIDC Trusted Publishing
 
 **Python servers:**
+
 - Python ≥3.11, pyproject.toml
 - Required: `[tool.mcp]` section in pyproject.toml
 - Testing: pytest with asyncio
 - Linting: ruff
 
 **Required files for all servers:**
+
 - README.md (with Support section + orange heart 🧡 footer)
 - LICENSE, CHANGELOG.md, CLAUDE.md
 - server.json (MCP Registry manifest, 2025-12-11 schema)
-- .github/workflows/ci.yml, security.yml, release*.yml
+- .github/workflows/ci.yml, security.yml, release\*.yml
 - .github/dependabot.yml
 
 **README Footer (Required):**
+
 ```markdown
 ## Support
 
@@ -142,6 +149,7 @@ The `server-inventory.json` tracks all VGP MCP servers with their publication st
 ## Publishing Workflow
 
 **New server:**
+
 1. Create: `./scripts/create-server.sh typescript {name} "description"`
 2. Implement tools in `src/index.ts`
 3. Update `server.json` with tools list
@@ -150,6 +158,7 @@ The `server-inventory.json` tracks all VGP MCP servers with their publication st
 6. Submit to MCP Registry: `~/mcp-registry/bin/mcp-publisher publish server.json`
 
 **Existing server:**
+
 1. Apply templates: `./scripts/apply-templates.sh typescript ../mcp-{name}`
 2. Audit: `./scripts/audit-server.sh ../mcp-{name}`
 3. Fix any errors/warnings
@@ -160,6 +169,7 @@ The `server-inventory.json` tracks all VGP MCP servers with their publication st
 All MCP servers include an optional `auto-fix.yml` workflow that uses [OpenAI Codex](https://developers.openai.com/codex/github-action) to automatically fix CI failures.
 
 **How it works:**
+
 1. CI fails (tests, lint, type errors)
 2. Auto-fix workflow triggers automatically
 3. Codex analyzes failures + CodeRabbit comments
@@ -167,11 +177,13 @@ All MCP servers include an optional `auto-fix.yml` workflow that uses [OpenAI Co
 5. Uses `[skip ci]` to prevent loops
 
 **To enable:**
+
 - Ensure `CODEX_AUTH_JSON` org secret is set (already configured)
 - Workflow triggers automatically on CI failure
 - Or run manually: Actions → Auto-Fix with Codex → Run workflow
 
 **To customize:**
+
 - Edit `.github/codex/prompts/fix-ci.md` in your repo
 - Add repo-specific instructions or constraints
 
@@ -180,6 +192,7 @@ All MCP servers include an optional `auto-fix.yml` workflow that uses [OpenAI Co
 ## Commit Message Format
 
 Use conventional commits for release-please:
+
 - `feat:` → minor version bump
 - `fix:` → patch version bump
 - `feat!:` or `BREAKING CHANGE:` → major version bump
