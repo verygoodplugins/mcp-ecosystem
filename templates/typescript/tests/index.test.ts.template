@@ -1,0 +1,60 @@
+import { describe, it, expect } from 'vitest';
+import { spawn } from 'node:child_process';
+import { resolve } from 'node:path';
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+async function terminate(child: ReturnType<typeof spawn>): Promise<void> {
+  if (child.exitCode !== null) return;
+
+  child.kill();
+  await Promise.race([
+    new Promise<void>((resolveExit) => child.once('exit', () => resolveExit())),
+    sleep(750),
+  ]);
+
+  if (child.exitCode === null) {
+    child.kill('SIGKILL');
+    await new Promise<void>((resolveExit) => child.once('exit', () => resolveExit()));
+  }
+}
+
+describe('mcp-{name}', () => {
+  it('does not write to stdout on startup', async () => {
+    const entry = resolve(process.cwd(), 'src/index.ts');
+    const child = spawn(process.execPath, ['--loader', 'tsx', entry], {
+      env: { ...process.env, API_KEY: 'test-key' },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+
+    let stdout = '';
+    child.stdout?.setEncoding('utf8');
+    child.stdout?.on('data', (chunk) => {
+      stdout += chunk;
+    });
+
+    try {
+      await sleep(200);
+      expect(stdout.trim()).toBe('');
+    } finally {
+      await terminate(child);
+    }
+  });
+
+  describe('smoke tests', () => {
+    it('should have tests', () => {
+      // TODO: Add actual tests
+      expect(true).toBe(true);
+    });
+  });
+
+  describe('example_tool', () => {
+    it('should process a query', async () => {
+      // TODO: Test your tool implementation
+      const query = 'test query';
+      expect(query).toBeDefined();
+    });
+  });
+});

@@ -2,6 +2,24 @@
 
 This document defines the coding standards for all Very Good Plugins MCP servers.
 
+## Quick Start
+
+The fastest way to create a new MCP server that meets all standards:
+
+```bash
+# Create a TypeScript server
+./scripts/create-server.sh typescript myservice "Brief description"
+
+# Or a Python server
+./scripts/create-server.sh python myservice "Brief description"
+```
+
+This scaffolds a complete project with all required files, configs, and workflows. Then just implement your tools in `src/index.ts` (TypeScript) or `src/mcp_myservice/server.py` (Python).
+
+**Reference Implementation:** Use [mcp-freescout](https://github.com/verygoodplugins/mcp-freescout) as the canonical example for patterns not fully documented here.
+
+---
+
 ## TypeScript Servers
 
 ### Requirements
@@ -126,6 +144,8 @@ export default tseslint.config(
       },
     },
     rules: {
+      // MCP stdio servers must not write to stdout outside the protocol.
+      'no-console': ['error', { allow: ['error', 'warn'] }],
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/no-explicit-any': 'warn',
@@ -155,7 +175,15 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { config } from 'dotenv';
 
-config();
+// MCP stdio transport uses stdout for the protocol stream.
+// Redirect stdout console methods to stderr to avoid corrupting the stream.
+console.log = console.error;
+console.info = console.error;
+console.debug = console.error;
+
+// dotenv@17 can emit an informational runtime log mentioning `.env` to stdout.
+process.env.DOTENV_CONFIG_QUIET = 'true';
+config({ quiet: true });
 
 // Validate required environment variables
 const API_KEY = process.env.API_KEY;
@@ -209,6 +237,7 @@ main().catch(console.error);
 - **Package Manager:** pip with pyproject.toml
 - **Linting:** ruff
 - **Testing:** pytest with asyncio support
+- **StdIO Logging:** never `print()` to stdout (reserved for MCP); use `logging` to stderr (e.g. `logging.basicConfig(stream=sys.stderr, level=logging.INFO)`)
 
 ### Project Structure
 
@@ -624,3 +653,155 @@ return {
 3. **Error handling** - No stack traces in production
 4. **Dependency auditing** - Regular `npm audit` / `pip-audit`
 5. **OIDC publishing** - Use Trusted Publishing, no API tokens in secrets
+
+---
+
+## Desktop Extensions (Optional)
+
+Desktop Extensions package MCP servers as `.mcpb` files for one-click installation in Claude Desktop. This is **optional** but recommended for servers targeting non-technical users.
+
+**Reference:** [Anthropic Desktop Extensions Guide](https://www.anthropic.com/engineering/desktop-extensions)
+
+### When to Use
+
+- Servers targeting WordPress admins (EDD, WooCommerce integrations)
+- Consumer-facing tools (finance, productivity)
+- Any server where users may not be comfortable with JSON config
+- Testing and demos
+
+### When to Skip
+
+- Developer-focused tools (code analysis, git integrations)
+- Servers primarily used with Claude Code (CLI-based)
+- Internal/enterprise tools with managed deployment
+
+### Required Files
+
+```
+server-name/
+├── manifest.json           # Extension metadata
+├── assets/
+│   ├── icon.png            # 128x128 primary icon (VGP orange #F97316)
+│   └── screenshots/
+│       └── main-usage.png  # Claude Desktop screenshots
+├── .mcpbignore             # Exclude dev dependencies
+└── ... (standard files)
+```
+
+### manifest.json Template (Full Branding)
+
+```json
+{
+  "manifest_version": "0.2",
+  "name": "io.github.verygoodplugins/mcp-{name}",
+  "display_name": "{Display Name}",
+  "version": "1.0.0",
+  "description": "{Compelling benefit-focused description under 100 chars}",
+
+  "long_description": "# {Display Name}\n\n{2-3 paragraphs with markdown}\n\n## Features\n\n- Feature 1\n- Feature 2\n\n## About Very Good Plugins\n\nBuilt by [Very Good Plugins](https://verygoodplugins.com/?utm_source=mcpb), creators of WP Fusion.\n\n---\n\n🧡 [VGP MCP Ecosystem](https://github.com/verygoodplugins)",
+
+  "author": {
+    "name": "Very Good Plugins",
+    "email": "support@verygoodplugins.com",
+    "url": "https://verygoodplugins.com/?utm_source=mcpb"
+  },
+
+  "icon": "assets/icon.png",
+
+  "screenshots": [
+    "assets/screenshots/main-usage.png"
+  ],
+
+  "server": {
+    "type": "node",
+    "entry_point": "dist/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/dist/index.js"],
+      "env": {
+        "API_KEY": "${user_config.api_key}"
+      }
+    }
+  },
+
+  "user_config": {
+    "api_key": {
+      "type": "string",
+      "title": "API Key",
+      "description": "Your API key from the service dashboard",
+      "sensitive": true,
+      "required": true
+    }
+  },
+
+  "tools": [
+    { "name": "tool_name", "description": "Detailed description for discoverability" }
+  ],
+
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/verygoodplugins/mcp-{name}"
+  },
+
+  "homepage": "https://verygoodplugins.com/mcp/?utm_source=mcpb",
+  "documentation": "https://github.com/verygoodplugins/mcp-{name}#readme",
+  "support": "https://github.com/verygoodplugins/mcp-{name}/issues",
+
+  "privacy_policies": [
+    "https://verygoodplugins.com/privacy-policy/?utm_source=mcpb"
+  ],
+
+  "license": "GPL-3.0",
+
+  "keywords": [
+    "mcp", "claude", "ai-tools", "wordpress",
+    "{service}", "{service}", "automation", "verygoodplugins"
+  ],
+
+  "compatibility": {
+    "claude_desktop": ">=1.0.0",
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": { "node": ">=18.0.0" }
+  }
+}
+```
+
+### Key Branding Fields
+
+| Field | Purpose |
+|-------|---------|
+| `long_description` | Markdown content for extension stores - include features, CTAs, VGP branding |
+| `icon` / `icons` | VGP-branded icons (orange #F97316) for UI visibility |
+| `screenshots` | Show Claude Desktop using the extension |
+| `homepage` | verygoodplugins.com with UTM tracking (not GitHub) |
+| `privacy_policies` | Enterprise-readiness signal |
+| `keywords` | Include "mcp", "claude", "verygoodplugins" for discoverability |
+
+### Configuration Fields
+
+- `user_config` - Settings shown on install
+- `server.mcp_config.env` - Maps user config to env vars: `${user_config.field_name}`
+- `sensitive: true` - Stores in OS keychain
+- `user_config` fields support: `type`, `title`, `description`, `required`, `sensitive`, `default`
+
+### Bundle Size
+
+Create `.mcpbignore` to exclude dev dependencies:
+
+### Build Script
+
+Add to package.json scripts:
+
+```json
+{
+  "scripts": {
+    "build:extension": "npm run build && npx @anthropic-ai/mcpb pack"
+  }
+}
+```
+
+### Distribution
+
+1. **GitHub Releases** - Attach `.mcpb` file to releases (recommended)
+2. **Direct download** - Host on project website
+3. **README link** - Include download link in installation section

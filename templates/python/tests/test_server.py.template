@@ -1,0 +1,19 @@
+"""Tests for mcp-{name} server."""
+
+import pytest
+
+
+class TestMcp{Name}:
+    """Test suite for mcp-{name}."""
+
+    def test_placeholder(self):
+        """Placeholder test - replace with actual tests."""
+        # TODO: Add actual tests
+        assert True
+
+    @pytest.mark.asyncio
+    async def test_example_tool(self):
+        """Test example_tool functionality."""
+        # TODO: Test your tool implementation
+        query = "test query"
+        assert query is not None

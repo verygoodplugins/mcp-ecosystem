@@ -218,11 +218,149 @@ When you release a new version:
 
 ---
 
+## Desktop Extension Publishing (Optional)
+
+Desktop Extensions provide one-click installation for Claude Desktop users. This is optional but recommended for servers targeting non-technical users.
+
+**Reference:** [Anthropic Desktop Extensions Guide](https://www.anthropic.com/engineering/desktop-extensions)
+
+### First-Time Setup
+
+1. **Install the mcpb CLI** (one-time):
+   ```bash
+   npm install -g @anthropic-ai/mcpb
+   ```
+
+2. **Create extension manifest** (`manifest.json` in project root):
+   ```json
+   {
+     "manifest_version": "0.2",
+     "name": "mcp-{name}",
+     "display_name": "Human Readable Name",
+     "version": "1.0.0",
+     "description": "Brief description",
+     "author": { "name": "Very Good Plugins" },
+     "server": {
+       "type": "node",
+       "entry_point": "dist/index.js",
+       "mcp_config": {
+         "command": "node",
+         "args": ["${__dirname}/dist/index.js"],
+         "env": { "API_KEY": "${user_config.api_key}" }
+       }
+     },
+     "user_config": {
+       "api_key": {
+         "type": "string",
+         "title": "API Key",
+         "sensitive": true,
+         "required": true
+       }
+     }
+   }
+   ```
+
+3. **Create `.mcpbignore`** to exclude dev dependencies:
+   ```
+   src/
+   tests/
+   *.ts
+   node_modules/typescript/
+   node_modules/@types/
+   node_modules/jest*/
+   node_modules/eslint*/
+   .git/
+   .github/
+   ```
+
+4. **Create brand assets** in `assets/` directory:
+   ```
+   assets/
+   ├── icon.png              # 128x128 primary (VGP orange #F97316)
+   └── screenshots/
+       └── main-usage.png    # Claude Desktop in action
+   ```
+
+   **Icon guidelines:**
+   - 128x128 PNG with transparent background
+   - VGP orange (#F97316) as accent color
+   - Simple design that reads well at small sizes
+
+   **Screenshot guidelines:**
+   - 1280x800 or similar aspect ratio
+   - Show Claude Desktop UI with tool in use
+   - Blur any sensitive data
+
+5. **Add build script** to package.json:
+   ```json
+   {
+     "scripts": {
+       "build:extension": "npm run build && npx @anthropic-ai/mcpb pack"
+     }
+   }
+   ```
+
+### Building the Extension
+
+```bash
+npm run build:extension
+```
+
+This creates `mcp-{name}-{version}.mcpb` in the project root.
+
+### Testing Locally
+
+1. Build the extension
+2. Double-click the `.mcpb` file to install in Claude Desktop
+3. Verify configuration prompts appear correctly
+4. Test that tools work as expected
+
+### Automated Releases
+
+To automatically build and attach extensions to GitHub releases, add this job to your release workflow:
+
+```yaml
+# In .github/workflows/release-please.yml
+build-extension:
+  needs: release-please
+  if: ${{ needs.release-please.outputs.release_created }}
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    - run: npm ci
+    - run: npm run build:extension
+    - name: Upload Extension to Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ needs.release-please.outputs.tag_name }}
+        files: "*.mcpb"
+```
+
+### README Installation Section
+
+Add to your README.md:
+
+```markdown
+### Quick Install (Claude Desktop)
+
+Download the latest Desktop Extension for one-click installation:
+
+[Download mcp-{name}.mcpb](https://github.com/verygoodplugins/mcp-{name}/releases/latest)
+
+Double-click the downloaded file to install. You'll be prompted for your API key.
+```
+
+---
+
 ## Post-Release Checklist
 
 - [ ] Verify package is accessible on npm/PyPI
 - [ ] Verify MCP Registry entry is correct
 - [ ] Test installation in clean environment
+- [ ] (Optional) Test Desktop Extension installation
 - [ ] Announce on Slack (automatic via workflow)
 - [ ] Consider X/Twitter announcement for major releases
 - [ ] Update any documentation sites

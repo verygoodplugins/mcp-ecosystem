@@ -13,7 +13,8 @@
       "status": "published",
       "cicd": true,
       "tests": true,
-      "securityScanning": true
+      "securityScanning": true,
+      "desktopExtension": false
     },
     {
       "name": "mcp-evernote",
@@ -25,7 +26,8 @@
       "status": "published",
       "cicd": true,
       "tests": true,
-      "securityScanning": true
+      "securityScanning": true,
+      "desktopExtension": false
     },
     {
       "name": "mcp-freescout",
@@ -37,7 +39,8 @@
       "status": "published",
       "cicd": true,
       "tests": true,
-      "securityScanning": true
+      "securityScanning": true,
+      "desktopExtension": false
     },
     {
       "name": "mcp-local-wp",
@@ -49,7 +52,8 @@
       "status": "published",
       "cicd": true,
       "tests": true,
-      "securityScanning": true
+      "securityScanning": true,
+      "desktopExtension": false
     },
     {
       "name": "mcp-pirsch",
@@ -61,7 +65,8 @@
       "status": "published",
       "cicd": true,
       "tests": true,
-      "securityScanning": true
+      "securityScanning": true,
+      "desktopExtension": false
     },
     {
       "name": "mcp-toggl",
@@ -73,7 +78,8 @@
       "status": "published",
       "cicd": true,
       "tests": true,
-      "securityScanning": true
+      "securityScanning": true,
+      "desktopExtension": false
     },
     {
       "name": "mcp-wp",
@@ -85,7 +91,8 @@
       "status": "development",
       "cicd": false,
       "tests": false,
-      "securityScanning": false
+      "securityScanning": false,
+      "desktopExtension": false
     },
     {
       "name": "whatsapp-mcp",
@@ -97,7 +104,8 @@
       "status": "published",
       "cicd": true,
       "tests": false,
-      "securityScanning": true
+      "securityScanning": true,
+      "desktopExtension": false
     },
     {
       "name": "streamdeck-mcp",
@@ -109,7 +117,8 @@
       "status": "published",
       "cicd": true,
       "tests": true,
-      "securityScanning": false
+      "securityScanning": false,
+      "desktopExtension": false
     },
     {
       "name": "robinhood-mcp",
@@ -121,7 +130,8 @@
       "status": "development",
       "cicd": true,
       "tests": true,
-      "securityScanning": true
+      "securityScanning": true,
+      "desktopExtension": false
     }
   ]
 }

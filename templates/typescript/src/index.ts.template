@@ -1,0 +1,88 @@
+#!/usr/bin/env node
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+} from '@modelcontextprotocol/sdk/types.js';
+import { config } from 'dotenv';
+
+// MCP stdio transport uses stdout for the protocol stream.
+// Redirect stdout console methods to stderr to avoid corrupting the stream.
+console.log = console.error;
+console.info = console.error;
+console.debug = console.error;
+
+// dotenv@17 can emit an informational runtime log mentioning `.env` to stdout.
+process.env.DOTENV_CONFIG_QUIET = 'true';
+config({ quiet: true });
+
+// Validate required environment variables
+const API_KEY = process.env.API_KEY;
+if (!API_KEY) {
+  console.error('Missing required API_KEY environment variable');
+  process.exit(1);
+}
+
+const server = new Server(
+  { name: 'mcp-{name}', version: '1.0.0' },
+  { capabilities: { tools: {} } }
+);
+
+// Define your tools here
+const tools = [
+  {
+    name: 'example_tool',
+    description: 'Example tool - replace with your actual tools',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        query: {
+          type: 'string',
+          description: 'The query to process',
+        },
+      },
+      required: ['query'],
+    },
+  },
+];
+
+server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools }));
+
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  const { name, arguments: args } = request.params;
+
+  try {
+    switch (name) {
+      case 'example_tool': {
+        const { query } = args as { query: string };
+        // TODO: Implement your tool logic here
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Processed query: ${query}`,
+            },
+          ],
+        };
+      }
+
+      default:
+        throw new Error(`Unknown tool: ${name}`);
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      content: [{ type: 'text', text: `Error: ${message}` }],
+      isError: true,
+    };
+  }
+});
+
+async function main() {
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  console.error('mcp-{name} server running on stdio');
+}
+
+main().catch(console.error);

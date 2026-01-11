@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+"""MCP server for {description}."""
+
+import asyncio
+import os
+from typing import Any
+
+from dotenv import load_dotenv
+from mcp.server import Server
+from mcp.server.stdio import stdio_server
+from mcp.types import TextContent, Tool
+
+load_dotenv()
+
+# Validate required environment variables
+API_KEY = os.getenv("API_KEY")
+if not API_KEY:
+    raise ValueError("Missing required API_KEY environment variable")
+
+server = Server("mcp-{name}")
+
+
+@server.list_tools()
+async def list_tools() -> list[Tool]:
+    """List available tools."""
+    return [
+        Tool(
+            name="example_tool",
+            description="Example tool - replace with your actual tools",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The query to process",
+                    },
+                },
+                "required": ["query"],
+            },
+        ),
+    ]
+
+
+@server.call_tool()
+async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
+    """Handle tool calls."""
+    try:
+        match name:
+            case "example_tool":
+                query = arguments.get("query", "")
+                # TODO: Implement your tool logic here
+                return [TextContent(type="text", text=f"Processed query: {query}")]
+
+            case _:
+                raise ValueError(f"Unknown tool: {name}")
+
+    except Exception as e:
+        return [TextContent(type="text", text=f"Error: {e}")]
+
+
+async def run_server():
+    """Run the MCP server."""
+    async with stdio_server() as (read_stream, write_stream):
+        await server.run(read_stream, write_stream, server.create_initialization_options())
+
+
+def main():
+    """Entry point."""
+    asyncio.run(run_server())
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,76 @@
+# mcp-{name}
+
+{description}
+
+## Installation
+
+### pip (for Claude Desktop/Code)
+
+```bash
+pip install mcp-{name}
+```
+
+### From source
+
+```bash
+git clone https://github.com/verygoodplugins/mcp-{name}
+cd mcp-{name}
+pip install -e .
+```
+
+### Claude Desktop Configuration
+
+Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "mcp-{name}": {
+      "command": "python",
+      "args": ["-m", "mcp_{name_underscore}.server"],
+      "env": {
+        "API_KEY": "your_api_key"
+      }
+    }
+  }
+}
+```
+
+## Tools
+
+- `example_tool` - Example tool description (replace with actual tools)
+
+## Configuration
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `API_KEY` | Yes | API key for the service |
+
+## Development
+
+```bash
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate
+
+# Install with dev dependencies
+pip install -e ".[dev]"
+
+# Run tests
+pytest
+
+# Lint and format
+ruff check . --fix
+ruff format .
+```
+
+## Support
+
+For issues, questions, or suggestions:
+
+- [Open an issue on GitHub](https://github.com/verygoodplugins/mcp-{name}/issues)
+- [Contact Very Good Plugins](https://verygoodplugins.com/contact/?utm_source=github)
+
+---
+
+Built with 🧡 by [Very Good Plugins](https://verygoodplugins.com/?utm_source=github)

@@ -1,0 +1,85 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Repository Purpose
+
+This is **mcp-{name}** - an MCP (Model Context Protocol) server that {description}.
+
+## Common Commands
+
+```bash
+# Setup
+python -m venv venv
+source venv/bin/activate  # or `venv\Scripts\activate` on Windows
+pip install -e ".[dev]"
+
+# Development
+python -m mcp_{name_underscore}.server  # Run server directly
+
+# Testing
+pytest                    # Run tests
+pytest --cov             # With coverage
+pytest -v                # Verbose
+
+# Code Quality
+ruff check .             # Lint
+ruff check . --fix       # Auto-fix
+ruff format .            # Format
+```
+
+## Architecture
+
+```
+mcp-{name}/
+├── src/
+│   └── mcp_{name_underscore}/
+│       ├── __init__.py    # Package init with version
+│       ├── server.py      # MCP server entry point
+│       └── client.py      # API client wrapper (create as needed)
+├── tests/
+│   └── test_server.py
+├── pyproject.toml
+└── server.json            # MCP Registry manifest
+```
+
+## Key Patterns
+
+**MCP SDK Usage:**
+- Server initialized with `mcp.server.Server`
+- Tools registered via `@server.list_tools()` decorator
+- Tool execution via `@server.call_tool()` decorator
+- Run with `stdio_server()` context manager
+
+**Error Handling:**
+- Return `TextContent` with error message for tool errors
+- Validate environment variables at module load
+- Use match/case for tool dispatch
+
+**Testing:**
+- Use pytest with asyncio support
+- Mock external API calls
+- Test each tool handler
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `API_KEY` | Yes | API key for the service |
+
+## VGP Standards
+
+This server follows [VGP MCP Standards](https://github.com/verygoodplugins/mcp-ecosystem/blob/main/STANDARDS.md):
+
+- Python ≥3.11
+- MCP SDK ≥1.0.0
+- pytest for testing (≥50% coverage)
+- ruff for linting and formatting
+
+## Commit Message Format
+
+Use conventional commits:
+- `feat:` → new feature
+- `fix:` → bug fix
+- `docs:` → documentation only
+- `chore:` → maintenance

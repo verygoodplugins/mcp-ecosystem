@@ -1,0 +1,66 @@
+# mcp-{name}
+
+{description}
+
+## Installation
+
+### npm (for Claude Desktop/Code)
+
+```bash
+npx @verygoodplugins/mcp-{name}
+```
+
+### Claude Desktop Configuration
+
+Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "mcp-{name}": {
+      "command": "npx",
+      "args": ["@verygoodplugins/mcp-{name}"],
+      "env": {
+        "API_KEY": "your_api_key"
+      }
+    }
+  }
+}
+```
+
+## Tools
+
+- `example_tool` - Example tool description (replace with actual tools)
+
+## Configuration
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `API_KEY` | Yes | API key for the service |
+
+## Development
+
+```bash
+# Install dependencies
+npm install
+
+# Run in development mode
+npm run dev
+
+# Run tests
+npm test
+
+# Build for production
+npm run build
+```
+
+## Support
+
+For issues, questions, or suggestions:
+
+- [Open an issue on GitHub](https://github.com/verygoodplugins/mcp-{name}/issues)
+- [Contact Very Good Plugins](https://verygoodplugins.com/contact/?utm_source=github)
+
+---
+
+Built with 🧡 by [Very Good Plugins](https://verygoodplugins.com/?utm_source=github)
