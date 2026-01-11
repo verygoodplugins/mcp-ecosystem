@@ -11,11 +11,11 @@ on:
   workflow_dispatch:
     inputs:
       prompt:
-        description: 'Custom instructions (optional - uses default fix prompt if empty)'
+        description: "Custom instructions (optional - uses default fix prompt if empty)"
         required: false
         type: string
       branch:
-        description: 'Branch to fix (defaults to current)'
+        description: "Branch to fix (defaults to current)"
         required: false
         type: string
 
@@ -30,7 +30,7 @@ jobs:
       contents: write
       pull-requests: write
       actions: read
-    
+
     steps:
       - name: Determine branch
         id: branch
@@ -60,14 +60,14 @@ jobs:
         run: |
           echo "📋 Fetching CI failure logs..."
           gh run view ${{ github.event.workflow_run.id }} --log-failed > /tmp/ci-failures.log 2>&1 || true
-          
+
           echo "📋 Fetching CodeRabbit comments..."
           PR_NUMBER=$(gh pr list --head "${{ steps.branch.outputs.branch }}" --json number -q '.[0].number' 2>/dev/null || echo "")
           if [ -n "$PR_NUMBER" ]; then
             gh pr view "$PR_NUMBER" --json comments -q '.comments[] | select(.author.login == "coderabbitai") | .body' > /tmp/coderabbit.txt 2>&1 || true
             echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
           fi
-          
+
           # Create context file for Codex
           echo "# CI Failure Context" > /tmp/context.md
           echo "" >> /tmp/context.md
@@ -82,7 +82,7 @@ jobs:
             echo "## CodeRabbit Comments" >> /tmp/context.md
             cat /tmp/coderabbit.txt >> /tmp/context.md
           fi
-          
+
           echo "✅ Context gathered"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -114,14 +114,14 @@ jobs:
           - Follow the existing code style and patterns
           PROMPT
           fi
-          
+
           # Append context if available
           if [ -f /tmp/context.md ]; then
             echo "" >> /tmp/prompt.md
             echo "---" >> /tmp/prompt.md
             cat /tmp/context.md >> /tmp/prompt.md
           fi
-          
+
           echo "✅ Prompt prepared"
           cat /tmp/prompt.md
 
@@ -154,9 +154,9 @@ jobs:
           git commit -m "fix: auto-fix CI failures
 
           Applied by Codex in response to CI failure.
-          
+
           Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          
+
           [skip ci]"
           git push
           echo "✅ Changes pushed"
