@@ -24,7 +24,6 @@ pytest -v                # Verbose
 
 # Code Quality
 ruff check .             # Lint
-ruff check . --fix       # Auto-fix
 ruff format .            # Format
 ```
 

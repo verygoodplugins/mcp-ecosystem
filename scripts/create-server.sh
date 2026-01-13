@@ -93,7 +93,7 @@ copy_file() {
 
 if [[ "$SERVER_TYPE" == "typescript" ]]; then
     # TypeScript structure
-    mkdir -p "$OUTPUT_DIR/src" "$OUTPUT_DIR/tests" "$OUTPUT_DIR/.github/workflows" "$OUTPUT_DIR/.github/codex/prompts"
+    mkdir -p "$OUTPUT_DIR/src" "$OUTPUT_DIR/tests" "$OUTPUT_DIR/.github/workflows"
     
     echo -e "${YELLOW}📋 Processing TypeScript templates...${NC}"
     
@@ -119,15 +119,6 @@ if [[ "$SERVER_TYPE" == "typescript" ]]; then
     done
     copy_file "$TEMPLATE_DIR/typescript/.github/dependabot.yml" "$OUTPUT_DIR/.github/dependabot.yml"
     
-    # Copy Codex prompts
-    if [[ -d "$TEMPLATE_DIR/typescript/.github/codex/prompts" ]]; then
-        for file in "$TEMPLATE_DIR/typescript/.github/codex/prompts"/*; do
-            if [[ -f "$file" ]]; then
-                copy_file "$file" "$OUTPUT_DIR/.github/codex/prompts/$(basename "$file")"
-            fi
-        done
-    fi
-    
     # Create empty CHANGELOG.md
     echo "# Changelog" > "$OUTPUT_DIR/CHANGELOG.md"
     echo "" >> "$OUTPUT_DIR/CHANGELOG.md"
@@ -137,7 +128,7 @@ if [[ "$SERVER_TYPE" == "typescript" ]]; then
     
 else
     # Python structure
-    mkdir -p "$OUTPUT_DIR/src/mcp_$NAME_UNDERSCORE" "$OUTPUT_DIR/tests" "$OUTPUT_DIR/.github/workflows" "$OUTPUT_DIR/.github/codex/prompts"
+    mkdir -p "$OUTPUT_DIR/src/mcp_$NAME_UNDERSCORE" "$OUTPUT_DIR/tests" "$OUTPUT_DIR/.github/workflows"
     
     echo -e "${YELLOW}📋 Processing Python templates...${NC}"
     
@@ -159,15 +150,6 @@ else
         copy_file "$file" "$OUTPUT_DIR/.github/workflows/$(basename "$file")"
     done
     copy_file "$TEMPLATE_DIR/python/.github/dependabot.yml" "$OUTPUT_DIR/.github/dependabot.yml"
-    
-    # Copy Codex prompts
-    if [[ -d "$TEMPLATE_DIR/python/.github/codex/prompts" ]]; then
-        for file in "$TEMPLATE_DIR/python/.github/codex/prompts"/*; do
-            if [[ -f "$file" ]]; then
-                copy_file "$file" "$OUTPUT_DIR/.github/codex/prompts/$(basename "$file")"
-            fi
-        done
-    fi
     
     # Create empty CHANGELOG.md
     echo "# Changelog" > "$OUTPUT_DIR/CHANGELOG.md"

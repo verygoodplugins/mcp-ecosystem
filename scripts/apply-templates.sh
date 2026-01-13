@@ -95,19 +95,6 @@ done
 # Copy dependabot config
 copy_file "$TEMPLATE_DIR/$SERVER_TYPE/.github/dependabot.yml" "$SERVER_PATH/.github/dependabot.yml" ".github/dependabot.yml"
 
-# Copy Codex prompts (for auto-fix workflow)
-if [[ -d "$TEMPLATE_DIR/$SERVER_TYPE/.github/codex" ]]; then
-    echo ""
-    echo "🤖 Copying Codex auto-fix configuration..."
-    mkdir -p "$SERVER_PATH/.github/codex/prompts"
-    for file in "$TEMPLATE_DIR/$SERVER_TYPE/.github/codex/prompts"/*; do
-        if [[ -f "$file" ]]; then
-            filename=$(basename "$file")
-            copy_file "$file" "$SERVER_PATH/.github/codex/prompts/$filename" ".github/codex/prompts/$filename"
-        fi
-    done
-fi
-
 # Copy config files
 echo ""
 echo "⚙️  Copying config files..."
@@ -180,13 +167,5 @@ echo "1. Update package configuration with mcpName"
 echo "2. Create server.json for MCP Registry"
 echo "3. Configure Trusted Publishing on npm/PyPI"
 echo "4. Run: ./audit-server.sh $SERVER_PATH"
-echo ""
-echo "🤖 Auto-Fix (optional):"
-echo "-----------------------"
-echo "The auto-fix.yml workflow is included but disabled by default."
-echo "To enable automatic Codex fixes on CI failure:"
-echo "1. Ensure CODEX_AUTH_JSON org secret is configured"
-echo "2. The workflow will auto-trigger on CI failures"
-echo "3. Or run manually: Actions → Auto-Fix with Codex → Run workflow"
 echo ""
 echo "✅ Templates applied successfully!"

@@ -164,31 +164,6 @@ The `server-inventory.json` tracks all VGP MCP servers with their publication st
 3. Fix any errors/warnings
 4. Update `server-inventory.json`
 
-## Codex Auto-Fix
-
-All MCP servers include an optional `auto-fix.yml` workflow that uses [OpenAI Codex](https://developers.openai.com/codex/github-action) to automatically fix CI failures.
-
-**How it works:**
-
-1. CI fails (tests, lint, type errors)
-2. Auto-fix workflow triggers automatically
-3. Codex analyzes failures + CodeRabbit comments
-4. Makes surgical fixes and commits them
-5. Uses `[skip ci]` to prevent loops
-
-**To enable:**
-
-- Ensure `CODEX_AUTH_JSON` org secret is set (already configured)
-- Workflow triggers automatically on CI failure
-- Or run manually: Actions → Auto-Fix with Codex → Run workflow
-
-**To customize:**
-
-- Edit `.github/codex/prompts/fix-ci.md` in your repo
-- Add repo-specific instructions or constraints
-
-**Cost:** Uses ChatGPT subscription (not API), so no additional charges.
-
 ## Commit Message Format
 
 Use conventional commits for release-please:
