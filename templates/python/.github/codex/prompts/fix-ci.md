@@ -1,6 +1,7 @@
 # Fix CI Failures
 
 You are fixing CI failures for a VGP MCP server. These are Python projects using:
+
 - MCP SDK (mcp package)
 - pytest with asyncio for testing
 - ruff for linting and formatting
@@ -30,6 +31,6 @@ Analyze the test failures and CodeRabbit comments below, then make the **minimal
 
 - Don't add new features
 - Don't refactor working code
-- Don't change error messages unnecessarily  
+- Don't change error messages unnecessarily
 - Don't add excessive comments
 - Don't modify pyproject.toml unless required

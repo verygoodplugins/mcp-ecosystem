@@ -1,6 +1,7 @@
 # Fix CI Failures
 
 You are fixing CI failures for a VGP MCP server. These are TypeScript projects using:
+
 - MCP SDK (@modelcontextprotocol/sdk)
 - Vitest for testing
 - ESLint 9 (flat config) + Prettier
@@ -29,6 +30,6 @@ Analyze the test failures and CodeRabbit comments below, then make the **minimal
 
 - Don't add new features
 - Don't refactor working code
-- Don't change error messages unnecessarily  
+- Don't change error messages unnecessarily
 - Don't add excessive comments
 - Don't modify package.json unless required
