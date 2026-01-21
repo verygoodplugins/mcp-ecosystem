@@ -15,7 +15,8 @@
 #   chore/docs: no version bump
 #
 # npm Publishing:
-#   Uses Trusted Publishing (OIDC) - no secrets needed!
+#   Uses Trusted Publishing (OIDC) - no NPM_TOKEN needed!
+#   Requires Node 24+ for npm 11.5.1+ OIDC support.
 #   Configure at: https://www.npmjs.com/package/@verygoodplugins/mcp-{name}/access
 
 name: Release Please
@@ -45,6 +46,7 @@ jobs:
     needs: release-please
     if: ${{ needs.release-please.outputs.release_created }}
     runs-on: ubuntu-latest
+    environment: npm
     permissions:
       contents: read
       id-token: write
@@ -53,15 +55,16 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           registry-url: "https://registry.npmjs.org"
 
-      - run: npm ci
+      # Use npm install for cross-version lockfile compatibility
+      - run: npm install
       - run: npm run build
       - run: npm test
 
       # Trusted Publishing: No NPM_TOKEN needed!
-      - run: npm publish --access public --provenance
+      - run: npm publish --provenance --access public
 
   announce:
     needs: [release-please, npm-publish]

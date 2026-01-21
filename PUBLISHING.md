@@ -52,16 +52,21 @@ Use this checklist when publishing a new MCP server or updating an existing one.
    npm publish --access public
    ```
 
-2. **Configure Trusted Publishing**:
+2. **Create GitHub Environment**:
+   - Go to repo Settings → Environments
+   - Create environment named `npm`
+   - No additional protection rules needed
+
+3. **Configure Trusted Publishing on npm**:
    - Go to https://www.npmjs.com/package/@verygoodplugins/mcp-{name}/access
    - Click "Manage Trusted Publishers"
    - Add GitHub Actions:
      - Owner: `verygoodplugins`
      - Repository: `mcp-{name}`
      - Workflow: `release-please.yml`
-     - Environment: (leave blank)
+     - Environment: `npm`
 
-3. **Verify provenance**:
+4. **Verify provenance**:
    After first automated publish, check npm page for provenance badge.
 
 ### Subsequent Releases
@@ -369,10 +374,13 @@ Double-click the downloaded file to install. You'll be prompted for your API key
 
 ## Troubleshooting
 
-### npm publish fails with 403
-- Check Trusted Publishing configuration
-- Verify workflow name matches exactly
-- Ensure `id-token: write` permission is set
+### npm publish fails with 403 or 404
+- **Node 24+ required** - npm OIDC Trusted Publishing needs npm 11.5.1+ (bundled with Node 24)
+- Check Trusted Publishing configuration on npm
+- Verify workflow name matches exactly (case-sensitive)
+- Verify environment name matches (use `npm` environment)
+- Ensure `id-token: write` permission is set on the publish job
+- Use `npm install` instead of `npm ci` for cross-version lockfile compatibility
 
 ### PyPI publish fails
 - Check Trusted Publishing configuration
