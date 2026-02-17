@@ -73,18 +73,3 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           generate_release_notes: true
-
-  announce:
-    needs: create-release
-    runs-on: ubuntu-latest
-    steps:
-      - name: Post to Slack
-        if: ${{ vars.SLACK_WEBHOOK_URL }}
-        uses: slackapi/slack-github-action@v1
-        with:
-          webhook-url: ${{ vars.SLACK_WEBHOOK_URL }}
-          webhook-type: incoming-webhook
-          payload: |
-            {
-              "text": "🚀 ${{ github.repository }} ${{ github.ref_name }} released!\n\nhttps://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
-            }

@@ -52,12 +52,31 @@ Use this checklist when publishing a new MCP server or updating an existing one.
    npm publish --access public
    ```
 
-2. **Create GitHub Environment**:
+2. **Create release-please config files**:
+   ```json
+   // release-please-config.json
+   {
+     "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+     "packages": {
+       ".": {
+         "release-type": "node",
+         "changelog-path": "CHANGELOG.md",
+         "extra-files": ["server.json", "manifest.json"]
+       }
+     }
+   }
+   ```
+   ```json
+   // .release-please-manifest.json
+   { ".": "1.0.0" }
+   ```
+
+3. **Create GitHub Environment**:
    - Go to repo Settings → Environments
    - Create environment named `npm`
    - No additional protection rules needed
 
-3. **Configure Trusted Publishing on npm**:
+4. **Configure Trusted Publishing on npm**:
    - Go to https://www.npmjs.com/package/@verygoodplugins/mcp-{name}/access
    - Click "Manage Trusted Publishers"
    - Add GitHub Actions:
@@ -66,7 +85,12 @@ Use this checklist when publishing a new MCP server or updating an existing one.
      - Workflow: `release-please.yml`
      - Environment: `npm`
 
-4. **Verify provenance**:
+5. **Verify `RELEASE_PLEASE_TOKEN`**:
+   The org-level `RELEASE_PLEASE_TOKEN` PAT must be available to the repo.
+   PRs created by the default `GITHUB_TOKEN` don't trigger other workflows,
+   which blocks required CI status checks on the Release PR.
+
+6. **Verify provenance**:
    After first automated publish, check npm page for provenance badge.
 
 ### Subsequent Releases

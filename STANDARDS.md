@@ -450,7 +450,9 @@ Example:
    - Triggered on push to main
    - Creates release PR with changelog
    - Publishes to npm/PyPI on release
-   - Uses OIDC Trusted Publishing (no secrets)
+   - Uses OIDC Trusted Publishing (no npm/PyPI secrets)
+   - **Must use `RELEASE_PLEASE_TOKEN`** (org-level PAT) so the Release PR triggers CI workflows. PRs created by the default `GITHUB_TOKEN` don't trigger other workflows (GitHub security feature), which blocks required status checks.
+   - Uses manifest mode (`release-please-config.json` + `.release-please-manifest.json`)
 
 3. **security.yml** - Weekly security scans
    - CodeQL analysis
