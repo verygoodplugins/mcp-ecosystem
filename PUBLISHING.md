@@ -390,8 +390,7 @@ Double-click the downloaded file to install. You'll be prompted for your API key
 - [ ] Verify MCP Registry entry is correct
 - [ ] Test installation in clean environment
 - [ ] (Optional) Test Desktop Extension installation
-- [ ] Announce on Slack (automatic via workflow)
-- [ ] Consider X/Twitter announcement for major releases
+- [ ] Consider announcing on social media for major releases
 - [ ] Update any documentation sites
 
 ---
