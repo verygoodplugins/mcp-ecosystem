@@ -84,7 +84,7 @@ echo "🔧 Checking CI/CD configuration..."
 echo "-----------------------------------"
 
 # Check GitHub workflows
-WORKFLOWS=("ci.yml" "security.yml")
+WORKFLOWS=("ci.yml" "security.yml" "pr-title.yml")
 if [[ "$SERVER_TYPE" == "typescript" ]]; then
     WORKFLOWS+=("release-please.yml")
 else

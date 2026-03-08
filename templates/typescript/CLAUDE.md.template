@@ -79,3 +79,6 @@ Use conventional commits for release-please:
 - `fix:` → patch version bump
 - `feat!:` or `BREAKING CHANGE:` → major version bump
 - `chore:`, `docs:` → no version bump
+
+If the repo uses squash merges, PR titles must also use conventional commit
+format because the merged commit title on `main` is what release-please sees.

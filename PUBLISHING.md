@@ -103,6 +103,10 @@ Releases are automatic via release-please:
    git push origin main
    ```
 
+   If you use squash merges, the PR title must also be conventional
+   (for example `fix: add single-symbol position lookup`) because
+   release-please classifies the merged commit title on `main`.
+
 2. Release-please creates a "Release PR" automatically
 
 3. Merge the Release PR to:

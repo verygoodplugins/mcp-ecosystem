@@ -454,7 +454,12 @@ Example:
    - **Must use `RELEASE_PLEASE_TOKEN`** (org-level PAT) so the Release PR triggers CI workflows. PRs created by the default `GITHUB_TOKEN` don't trigger other workflows (GitHub security feature), which blocks required status checks.
    - Uses manifest mode (`release-please-config.json` + `.release-please-manifest.json`)
 
-3. **security.yml** - Weekly security scans
+3. **pr-title.yml** - Enforces conventional PR titles on PRs targeting `main`
+   - Required because squash merges use the PR title as the commit title on `main`
+   - Release-please parses those merged commit titles to build changelogs and version bumps
+   - Should be required via branch protection or an organization ruleset
+
+4. **security.yml** - Weekly security scans
    - CodeQL analysis
    - Dependency vulnerability scanning
 

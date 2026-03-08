@@ -82,3 +82,6 @@ Use conventional commits:
 - `fix:` → bug fix
 - `docs:` → documentation only
 - `chore:` → maintenance
+
+If the repo uses squash merges, PR titles must also use conventional commit
+format because the merged commit title on `main` is what release-please sees.
