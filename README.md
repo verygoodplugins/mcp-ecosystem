@@ -57,6 +57,12 @@ mcp-ecosystem/
 ./scripts/apply-templates.sh typescript ../mcp-freescout
 ```
 
+### Preview downstream template drift
+
+```bash
+./scripts/propagate-templates.sh --server mcp-pirsch --dry-run
+```
+
 ### Register a server in MCP Registry
 
 ```bash
@@ -71,6 +77,17 @@ Key requirements:
 - **TypeScript:** Node.js ≥18, ES2022, strict mode, Vitest, release-please
 - **Python:** Python ≥3.11, pyproject.toml, pytest, ruff
 - **All:** CI/CD, security scanning, MCP Registry, UTM tracking
+
+## Source Of Truth
+
+`mcp-ecosystem` is the source of truth for shared MCP server workflows, config, and baseline dependency versions.
+
+- Update templates and shared baselines here first.
+- Merge the source-of-truth change to `main`.
+- `.github/workflows/propagate-templates.yml` opens or updates `chore/template-sync` PRs in downstream repos from `server-inventory.json`.
+- `scripts/sync-template-baseline.mjs` updates shared dependency versions without overwriting server-specific runtime dependencies.
+
+The propagation workflow requires an org/repo secret named `VGP_TEMPLATE_SYNC_TOKEN` with access to the downstream repos and workflow files.
 
 ## Publishing
 

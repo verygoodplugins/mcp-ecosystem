@@ -1,0 +1,75 @@
+name: Propagate Templates
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/propagate-templates.yml"
+      - "scripts/apply-templates.sh"
+      - "scripts/propagate-templates.sh"
+      - "scripts/sync-template-baseline.mjs"
+      - "server-inventory.json"
+      - "templates/**"
+  schedule:
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+    inputs:
+      server:
+        description: "Optional server name from server-inventory.json"
+        required: false
+        type: string
+      dry_run:
+        description: "Preview only without opening PRs"
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: propagate-templates
+  cancel-in-progress: false
+
+jobs:
+  propagate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Validate toolchain
+        run: |
+          command -v gh
+          command -v jq
+          command -v git
+          command -v node
+
+      - name: Propagate templates
+        env:
+          GH_TOKEN: ${{ secrets.VGP_TEMPLATE_SYNC_TOKEN }}
+          INPUT_SERVER: ${{ inputs.server }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          if [[ -z "${GH_TOKEN}" ]]; then
+            echo "Missing VGP_TEMPLATE_SYNC_TOKEN secret"
+            exit 1
+          fi
+
+          gh auth setup-git
+
+          ARGS=()
+
+          if [[ -n "${INPUT_SERVER}" ]]; then
+            ARGS+=(--server "${INPUT_SERVER}")
+          fi
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${INPUT_DRY_RUN}" == "true" ]]; then
+            ARGS+=(--dry-run)
+          fi
+
+          chmod +x scripts/apply-templates.sh scripts/propagate-templates.sh
+          ./scripts/propagate-templates.sh "${ARGS[@]}"
