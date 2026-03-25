@@ -80,12 +80,14 @@ echo "Mode: $([[ "$DRY_RUN" == true ]] && echo "dry-run" || echo "open-prs")"
 echo ""
 
 mapfile -t SERVERS < <(jq -c '.servers[]' "$INVENTORY_FILE")
+MATCHED_SERVER=false
 
 for SERVER_JSON in "${SERVERS[@]}"; do
     SERVER_NAME="$(jq -r '.name' <<<"$SERVER_JSON")"
     if [[ -n "$SERVER_FILTER" && "$SERVER_FILTER" != "$SERVER_NAME" ]]; then
         continue
     fi
+    MATCHED_SERVER=true
 
     SERVER_URL="$(jq -r '.github' <<<"$SERVER_JSON")"
     RAW_SERVER_TYPE="$(jq -r '.type' <<<"$SERVER_JSON")"
@@ -155,3 +157,8 @@ EOF
     echo "   Opened PR in $REPO_SLUG"
     echo ""
 done
+
+if [[ -n "$SERVER_FILTER" && "$MATCHED_SERVER" != true ]]; then
+    echo "❌ Unknown server: $SERVER_FILTER"
+    exit 1
+fi

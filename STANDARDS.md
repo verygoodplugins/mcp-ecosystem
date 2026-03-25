@@ -476,9 +476,13 @@ updates:
     schedule:
       interval: "weekly"
     groups:
+      # npm / TypeScript
       runtime-dependencies:
         dependency-type: "production"
       toolchain:
+        dependency-type: "development"
+      # pip / Python
+      dev-dependencies:
         dependency-type: "development"
 ```
 
