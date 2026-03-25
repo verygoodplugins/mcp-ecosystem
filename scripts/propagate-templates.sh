@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Propagate source-of-truth templates from mcp-ecosystem to downstream MCP servers.
 # Usage: ./propagate-templates.sh [--server <name>] [--dry-run]
 
@@ -107,6 +107,12 @@ for SERVER_JSON in "${SERVERS[@]}"; do
 
     "$SCRIPT_DIR/apply-templates.sh" "$SERVER_TYPE" "$REPO_DIR" --force >/dev/null
     node "$SCRIPT_DIR/sync-template-baseline.mjs" "$SERVER_TYPE" "$REPO_DIR" >/dev/null
+
+    # Regenerate lockfile if package.json changed
+    if [[ "$SERVER_TYPE" == "typescript" && -n "$(git -C "$REPO_DIR" diff --name-only -- package.json)" ]]; then
+        echo "   Regenerating package-lock.json..."
+        (cd "$REPO_DIR" && npm install --package-lock-only --ignore-scripts) >/dev/null 2>&1
+    fi
 
     if [[ -z "$(git -C "$REPO_DIR" status --short)" ]]; then
         echo "   No template drift"
