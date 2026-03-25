@@ -57,7 +57,7 @@
     },
     {
       "name": "mcp-pirsch",
-      "type": "javascript",
+      "type": "typescript",
       "description": "Pirsch Analytics integration",
       "github": "https://github.com/verygoodplugins/mcp-pirsch",
       "npm": "@verygoodplugins/mcp-pirsch",
