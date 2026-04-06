@@ -119,11 +119,42 @@ if [[ "$SERVER_TYPE" == "typescript" ]]; then
     done
     copy_file "$TEMPLATE_DIR/typescript/.github/dependabot.yml" "$OUTPUT_DIR/.github/dependabot.yml"
     
+    # Create Release Please config with server.json version tracking
+    cat > "$OUTPUT_DIR/release-please-config.json" << 'RPEOF'
+{
+  "packages": {
+    ".": {
+      "release-type": "node",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true,
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "server.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "server.json",
+          "jsonpath": "$.packages[0].version"
+        }
+      ]
+    }
+  }
+}
+RPEOF
+
+    cat > "$OUTPUT_DIR/.release-please-manifest.json" << 'RPEOF'
+{
+  ".": "1.0.0"
+}
+RPEOF
+
     # Create empty CHANGELOG.md
     echo "# Changelog" > "$OUTPUT_DIR/CHANGELOG.md"
     echo "" >> "$OUTPUT_DIR/CHANGELOG.md"
     echo "All notable changes to this project will be documented in this file." >> "$OUTPUT_DIR/CHANGELOG.md"
-    
+
     echo -e "${GREEN}✅ TypeScript templates applied${NC}"
     
 else
