@@ -1,0 +1,266 @@
+{
+  "repoDefaults": {
+    "allowAutoMerge": true,
+    "deleteBranchOnMerge": true,
+    "allowSquashMerge": true,
+    "vulnerabilityAlerts": true,
+    "automatedSecurityFixes": true
+  },
+  "templateTiers": {
+    "strict": [
+      "prTitleWorkflow",
+      "dependabotAutoMergeWorkflow",
+      "ciWorkflow",
+      "securityWorkflow",
+      "dependabotConfig",
+      "releaseWorkflow",
+      "eslintConfig",
+      "vitestConfig"
+    ],
+    "compatible": [
+      "prTitleWorkflow",
+      "dependabotAutoMergeWorkflow",
+      "ciWorkflow",
+      "securityWorkflow",
+      "dependabotConfig",
+      "releaseWorkflow",
+      "eslintConfig",
+      "vitestConfig"
+    ],
+    "minimal": [
+      "prTitleWorkflow",
+      "dependabotAutoMergeWorkflow",
+      "ciWorkflow",
+      "securityWorkflow",
+      "dependabotConfig",
+      "releaseWorkflow"
+    ]
+  },
+  "ciProfiles": {
+    "ts-vitest": {
+      "id": "ts-vitest",
+      "language": "typescript",
+      "managedFeatures": ["ciWorkflow", "eslintConfig", "vitestConfig"],
+      "requiredScripts": ["lint", "build", "test", "test:coverage"],
+      "managedBaseline": {
+        "dependencies": ["@modelcontextprotocol/sdk"],
+        "devDependencies": [
+          "@eslint/js",
+          "@vitest/coverage-v8",
+          "eslint",
+          "eslint-config-prettier",
+          "prettier",
+          "tsx",
+          "typescript",
+          "typescript-eslint",
+          "vitest"
+        ]
+      },
+      "nodeVersion": "20",
+      "testCommand": "npm test",
+      "coverageCommand": "npm run test:coverage"
+    },
+    "ts-jest": {
+      "id": "ts-jest",
+      "language": "typescript",
+      "managedFeatures": ["ciWorkflow"],
+      "requiredScripts": ["lint", "build", "test"],
+      "managedBaseline": {
+        "dependencies": ["@modelcontextprotocol/sdk"],
+        "devDependencies": [
+          "@eslint/js",
+          "eslint-config-prettier",
+          "prettier",
+          "tsx",
+          "typescript",
+          "typescript-eslint"
+        ]
+      },
+      "nodeVersion": "20",
+      "testCommand": "npm test"
+    },
+    "ts-jest-integration": {
+      "id": "ts-jest-integration",
+      "language": "typescript",
+      "managedFeatures": ["ciWorkflow"],
+      "requiredScripts": ["lint", "build", "test", "test:integration"],
+      "managedBaseline": {
+        "dependencies": ["@modelcontextprotocol/sdk"],
+        "devDependencies": [
+          "@eslint/js",
+          "eslint-config-prettier",
+          "prettier",
+          "tsx",
+          "typescript",
+          "typescript-eslint"
+        ]
+      },
+      "nodeVersion": "20",
+      "testCommand": "npm test",
+      "integrationTestCommand": "npm run test:integration",
+      "integrationTestWhen": "push-main"
+    },
+    "py-src-layout": {
+      "id": "py-src-layout",
+      "language": "python",
+      "managedFeatures": ["ciWorkflow"],
+      "requiredFiles": ["pyproject.toml"],
+      "pythonVersions": ["3.11", "3.12"],
+      "coverageSourceMode": "packagePath",
+      "banditTargetMode": "src"
+    },
+    "py-flat-layout": {
+      "id": "py-flat-layout",
+      "language": "python",
+      "managedFeatures": ["ciWorkflow"],
+      "requiredFiles": ["pyproject.toml"],
+      "pythonVersions": ["3.11", "3.12"],
+      "managedBaseline": {
+        "dependencies": [],
+        "devDependencies": ["pytest", "pytest-asyncio", "pytest-cov", "ruff"]
+      },
+      "coverageSourceMode": "explicit",
+      "banditTargetMode": "root"
+    },
+    "py-monorepo": {
+      "id": "py-monorepo",
+      "language": "python",
+      "managedFeatures": ["ciWorkflow"],
+      "requiredFiles": ["pyproject.toml"],
+      "pythonVersions": ["3.11", "3.12"],
+      "managedBaseline": {
+        "dependencies": [],
+        "devDependencies": ["pytest", "pytest-asyncio", "pytest-cov", "ruff"]
+      },
+      "coverageSourceMode": "explicit",
+      "banditTargetMode": "root"
+    },
+    "py-monorepo-go": {
+      "id": "py-monorepo-go",
+      "language": "python",
+      "managedFeatures": ["ciWorkflow"],
+      "requiredFiles": ["pyproject.toml"],
+      "pythonVersions": ["3.11"],
+      "managedBaseline": {
+        "dependencies": [],
+        "devDependencies": ["pytest", "pytest-asyncio", "ruff"]
+      },
+      "coverageSourceMode": "explicit",
+      "banditTargetMode": "root",
+      "supportsGoBridge": true,
+      "pythonPackageManager": "uv",
+      "supportsVersionConsistency": true
+    }
+  },
+  "releaseProfiles": {
+    "release-please-manifest": {
+      "id": "release-please-manifest",
+      "language": "typescript",
+      "managedFeatures": ["releaseWorkflow"],
+      "workflowFile": ".github/workflows/release-please.yml",
+      "requiredFiles": [
+        "release-please-config.json",
+        ".release-please-manifest.json"
+      ],
+      "requiredSecrets": ["RELEASE_PLEASE_TOKEN"],
+      "mode": "manifest"
+    },
+    "release-please-simple": {
+      "id": "release-please-simple",
+      "language": "typescript",
+      "managedFeatures": ["releaseWorkflow"],
+      "workflowFile": ".github/workflows/release-please.yml",
+      "requiredFiles": [],
+      "requiredSecrets": ["RELEASE_PLEASE_TOKEN"],
+      "mode": "simple"
+    },
+    "release-please-manifest-extension": {
+      "id": "release-please-manifest-extension",
+      "language": "typescript",
+      "managedFeatures": ["releaseWorkflow"],
+      "workflowFile": ".github/workflows/release-please.yml",
+      "requiredFiles": [
+        "release-please-config.json",
+        ".release-please-manifest.json"
+      ],
+      "requiredSecrets": ["RELEASE_PLEASE_TOKEN"],
+      "mode": "manifest",
+      "supportsDesktopExtension": true
+    },
+    "release-please-manifest-go-artifacts": {
+      "id": "release-please-manifest-go-artifacts",
+      "language": "python",
+      "managedFeatures": ["releaseWorkflow"],
+      "workflowFile": ".github/workflows/release-please.yml",
+      "additionalWorkflowFiles": [".github/workflows/release.yml"],
+      "requiredFiles": [
+        "release-please-config.json",
+        ".release-please-manifest.json"
+      ],
+      "requiredSecrets": ["RELEASE_PLEASE_TOKEN"],
+      "mode": "release-please-manifest-go-artifacts",
+      "supportsGoBridgeArtifacts": true,
+      "supportsManualFallback": true
+    },
+    "pypi-oidc": {
+      "id": "pypi-oidc",
+      "language": "python",
+      "managedFeatures": ["releaseWorkflow"],
+      "workflowFile": ".github/workflows/release.yml",
+      "requiredFiles": [],
+      "requiredSecrets": [],
+      "mode": "pypi-oidc"
+    },
+    "manual-fallback-go": {
+      "id": "manual-fallback-go",
+      "language": "python",
+      "managedFeatures": ["releaseWorkflow"],
+      "workflowFile": ".github/workflows/release.yml",
+      "requiredFiles": [],
+      "requiredSecrets": [],
+      "mode": "manual-fallback-go",
+      "supportsGoBridgeArtifacts": true
+    }
+  },
+  "securityProfiles": {
+    "strict": {
+      "id": "strict",
+      "managedFeatures": ["securityWorkflow", "dependabotConfig"],
+      "dependencyAuditContinueOnError": false,
+      "pipAuditContinueOnError": false,
+      "banditContinueOnError": false
+    },
+    "advisory-only": {
+      "id": "advisory-only",
+      "managedFeatures": ["securityWorkflow", "dependabotConfig"],
+      "dependencyAuditContinueOnError": true,
+      "pipAuditContinueOnError": true,
+      "banditContinueOnError": true
+    },
+    "bandit-root": {
+      "id": "bandit-root",
+      "managedFeatures": ["securityWorkflow", "dependabotConfig"],
+      "dependencyAuditContinueOnError": false,
+      "pipAuditContinueOnError": false,
+      "banditContinueOnError": false,
+      "banditTargetMode": "root"
+    },
+    "bandit-root-go": {
+      "id": "bandit-root-go",
+      "managedFeatures": ["securityWorkflow", "dependabotConfig"],
+      "dependencyAuditContinueOnError": false,
+      "pipAuditContinueOnError": true,
+      "banditContinueOnError": true,
+      "banditTargetMode": "root",
+      "supportsGoBridge": true
+    },
+    "bandit-src": {
+      "id": "bandit-src",
+      "managedFeatures": ["securityWorkflow", "dependabotConfig"],
+      "dependencyAuditContinueOnError": false,
+      "pipAuditContinueOnError": false,
+      "banditContinueOnError": false,
+      "banditTargetMode": "src"
+    }
+  }
+}

@@ -79,7 +79,10 @@ echo "Source SHA: $SOURCE_SHA"
 echo "Mode: $([[ "$DRY_RUN" == true ]] && echo "dry-run" || echo "open-prs")"
 echo ""
 
-mapfile -t SERVERS < <(jq -c '.servers[]' "$INVENTORY_FILE")
+SERVERS=()
+while IFS= read -r server_json; do
+    SERVERS+=("$server_json")
+done < <(jq -c '.servers[]' "$INVENTORY_FILE")
 MATCHED_SERVER=false
 
 for SERVER_JSON in "${SERVERS[@]}"; do
@@ -88,6 +91,14 @@ for SERVER_JSON in "${SERVERS[@]}"; do
         continue
     fi
     MATCHED_SERVER=true
+
+    PROPAGATE_ENABLED="$(jq -r 'if has("propagate") then .propagate else true end' <<<"$SERVER_JSON")"
+    if [[ "$PROPAGATE_ENABLED" != "true" ]]; then
+        echo "==> $SERVER_NAME"
+        echo "   Propagation disabled in server-inventory.json"
+        echo ""
+        continue
+    fi
 
     SERVER_URL="$(jq -r '.github' <<<"$SERVER_JSON")"
     RAW_SERVER_TYPE="$(jq -r '.type' <<<"$SERVER_JSON")"
@@ -98,6 +109,7 @@ for SERVER_JSON in "${SERVERS[@]}"; do
 
     REPO_SLUG="$(repo_slug_from_url "$SERVER_URL")"
     REPO_DIR="$TEMP_DIR/$SERVER_NAME"
+    REPORT_PATH="$TEMP_DIR/${SERVER_NAME}-sync-report.json"
 
     echo "==> $SERVER_NAME ($SERVER_TYPE)"
     gh repo clone "$REPO_SLUG" "$REPO_DIR" -- --quiet
@@ -105,8 +117,26 @@ for SERVER_JSON in "${SERVERS[@]}"; do
     git -C "$REPO_DIR" checkout "$BASE_BRANCH" >/dev/null 2>&1
     git -C "$REPO_DIR" pull --ff-only origin "$BASE_BRANCH" >/dev/null 2>&1
 
-    "$SCRIPT_DIR/apply-templates.sh" "$SERVER_TYPE" "$REPO_DIR" --force >/dev/null
-    node "$SCRIPT_DIR/sync-template-baseline.mjs" "$SERVER_TYPE" "$REPO_DIR" >/dev/null
+    if ! RENDER_OUTPUT="$(node "$SCRIPT_DIR/render-managed-files.mjs" "$SERVER_NAME" "$REPO_DIR" 2>&1)"; then
+        echo "   Render failed; skipping PR"
+        echo "$RENDER_OUTPUT" | sed 's/^/   ! /'
+        echo ""
+        continue
+    fi
+
+    if ! SYNC_OUTPUT="$(node "$SCRIPT_DIR/sync-template-baseline.mjs" "$SERVER_NAME" "$REPO_DIR" --report-file "$REPORT_PATH" 2>&1)"; then
+        echo "   Baseline sync failed; skipping PR"
+        echo "$SYNC_OUTPUT" | sed 's/^/   ! /'
+        echo ""
+        continue
+    fi
+
+    if ! VALIDATION_OUTPUT="$(node "$SCRIPT_DIR/validate-sync.mjs" "$SERVER_NAME" "$REPO_DIR" --sync-report "$REPORT_PATH" 2>&1)"; then
+        echo "   Preflight failed; skipping PR"
+        echo "$VALIDATION_OUTPUT" | sed 's/^/   ! /'
+        echo ""
+        continue
+    fi
 
     if [[ -z "$(git -C "$REPO_DIR" status --short)" ]]; then
         echo "   No template drift"
@@ -147,8 +177,9 @@ Sync shared workflow/config/template baselines from \`verygoodplugins/mcp-ecosys
 
 - Source commit: \`$SOURCE_SHA\`
 - Sync date: \`$RUN_DATE\`
-- Applied workflow and config templates with \`scripts/apply-templates.sh --force\`
-- Re-aligned shared dependency baselines with \`scripts/sync-template-baseline.mjs\`
+- Rendered managed workflow/config files from repo profiles in \`server-inventory.json\`
+- Re-aligned managed dependency baselines with \`scripts/sync-template-baseline.mjs\`
+- Validated the generated diff before opening this PR
 
 This PR is generated from the ecosystem source of truth to reduce per-repo Dependabot drift.
 EOF

@@ -6,8 +6,13 @@ on:
     paths:
       - ".github/workflows/propagate-templates.yml"
       - "scripts/apply-templates.sh"
+      - "scripts/describe-server.mjs"
       - "scripts/propagate-templates.sh"
+      - "scripts/render-managed-files.mjs"
       - "scripts/sync-template-baseline.mjs"
+      - "scripts/validate-sync.mjs"
+      - "scripts/lib/**"
+      - "config/**"
       - "server-inventory.json"
       - "templates/**"
   schedule:
