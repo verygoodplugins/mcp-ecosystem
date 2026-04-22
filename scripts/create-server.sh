@@ -6,6 +6,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_DIR="$SCRIPT_DIR/../templates"
+DEFAULT_GITHUB_ORG="${GITHUB_ORG:-verygoodplugins}"
 
 SERVER_TYPE="${1:-}"
 SERVER_NAME="${2:-}"
@@ -239,6 +240,8 @@ echo "4. Update server.json with your tools list"
 echo "5. Update README.md with full documentation"
 echo "6. Run tests: npm test / pytest"
 echo "7. Commit: git commit -m \"feat: initial mcp-$NAME implementation\""
+echo "8. Create the GitHub repo: gh repo create $DEFAULT_GITHUB_ORG/mcp-$NAME --public --source=. --remote=origin --push"
+echo "9. Apply repo defaults: $SCRIPT_DIR/configure-github-defaults.sh $DEFAULT_GITHUB_ORG/mcp-$NAME"
 echo ""
 echo -e "${BLUE}📚 Standards:${NC} https://github.com/verygoodplugins/mcp-ecosystem/blob/main/STANDARDS.md"
 echo -e "${BLUE}🔍 Audit:${NC}     $SCRIPT_DIR/audit-server.sh $OUTPUT_DIR"
