@@ -372,11 +372,7 @@ ${defaultsBlock}jobs:
         python-version: ["${ciProfile.pythonVersions.join('", "')}"]
 
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: \${{ github.event.inputs.tag }}
-        with:
-          ref: \${{ github.event.inputs.tag }}
+      - uses: actions/checkout@v4\${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag && format('\n        with:\n          ref: {0}', github.event.inputs.tag) || '' }}
 
       - name: Set up Python \${{ matrix.python-version }}
         uses: actions/setup-python@v5
