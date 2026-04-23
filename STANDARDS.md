@@ -474,7 +474,9 @@ Example:
 5. **dependabot-auto-merge.yml** - Approves safe Dependabot PRs and enables GitHub auto-merge
    - Runs on `pull_request_target` for Dependabot PRs only
    - Uses CI + org rulesets as the safety gate
-   - Auto-merges patch + minor dependency updates and GitHub Actions updates
+   - Thin stub that delegates all logic to the reusable workflow at [`verygoodplugins/.github`](https://github.com/verygoodplugins/.github/blob/main/.github/workflows/dependabot-auto-merge.yml)
+   - Auto-merges: patch updates, indirect/transitive deps (any version), dev-dep minor bumps, and GitHub Actions updates
+   - Major updates to direct runtime deps always require manual review
 
 ### Dependabot Configuration
 
@@ -523,13 +525,19 @@ so policy stays consistent across generation and auditing.
 
 - `Protect MCP Main Branches` (`11708193`): covers MCP default branches, blocks
   force-push/delete, requires PRs, linear history, and conversation resolution.
+  Bypass: `RepositoryRole:5` (admin) always.
 - `MCP Python/Go CI` (`13414905`): requires `Python Lint`, `Go Lint`,
   `Go Build`, and `Python Tests` for `whatsapp-mcp` and `robinhood-mcp`.
 - `MCP TypeScript CI` (`13414915`): requires `test` for `mcp-*` TypeScript
   repos (excluding `mcp-ecosystem`).
-- `Copilot Auto Review` (`14736230`): enables Copilot review across the org,
-  excluding automation branches.
+- `Copilot Auto Review` (`14736230`): triggers Copilot review on PR open/ready
+  across the org, excluding automation branches. `review_on_push` is **off** —
+  Copilot reviews once on open, not on every commit push.
 - `Protect Release Tags` (`11708252`): blocks delete/update on MCP release tags.
+
+Repo-level rulesets that duplicate org coverage were removed (`mcp-automem`,
+`mcp-edd`, `mcp-freescout`, `mcp-local-wp`). The org ruleset admin bypass
+covers all those repos.
 
 **Required repo-level defaults:**
 
@@ -545,9 +553,16 @@ Apply those per-repo settings with
 
 **Auto-merge policy:**
 
-- Auto-merge Dependabot patch and minor dependency updates after required CI is green
-- Keep non-`github_actions` major updates manual
-- Allow GitHub Actions majors because CI is the gate and the action surface is limited
+The canonical logic lives in [`verygoodplugins/.github/.github/workflows/dependabot-auto-merge.yml`](https://github.com/verygoodplugins/.github/blob/main/.github/workflows/dependabot-auto-merge.yml). Each repo carries only a 6-line stub calling it. Edit the reusable workflow to change policy org-wide.
+
+| Update type | Policy |
+|---|---|
+| Patch — any dep | ✅ auto |
+| Indirect/transitive — any version | ✅ auto |
+| Minor — dev/test dep | ✅ auto |
+| Minor/patch — GitHub Actions | ✅ auto |
+| Minor — direct runtime dep | ❌ manual |
+| Major — any dep | ❌ manual |
 
 **PR title enforcement rollout:**
 
@@ -556,8 +571,10 @@ Apply those per-repo settings with
   older repos still lack the workflow
 - After template propagation aligns the fleet, add `Lint PR Title` to the org CI rulesets
 
-If one repo needs a stricter or looser Dependabot policy, override only the
-`if:` block inside that repo's `.github/workflows/dependabot-auto-merge.yml`.
+If one repo needs a stricter or looser Dependabot policy, replace the stub with
+the full inline workflow (copied from the reusable source) and modify the `if:`
+condition. Don't reference the reusable workflow and add conditions in the same
+file — caller stubs can't override `if:` on the callee's jobs.
 
 ---
 
