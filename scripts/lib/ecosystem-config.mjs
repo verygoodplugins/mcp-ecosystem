@@ -313,7 +313,6 @@ on:
 
 jobs:
   test:
-    name: TypeScript CI
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -612,8 +611,7 @@ function renderReleaseFiles(server, profiles) {
     [workflowPath]: renderReleaseWorkflow(server, profiles),
   };
 
-  for (const extraWorkflowPath of profiles.release.additionalWorkflowFiles ??
-    []) {
+  for (const extraWorkflowPath of profiles.release.additionalWorkflowFiles ?? []) {
     files[extraWorkflowPath] = renderAdditionalReleaseWorkflow(
       server,
       profiles.release,

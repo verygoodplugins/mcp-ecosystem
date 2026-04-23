@@ -78,7 +78,7 @@ test("renders release-please simple workflow for jest repos", () => {
   const files = renderManagedFiles(server, profiles);
 
   assert.equal(profiles.release.id, "release-please-simple");
-  assert.match(files[".github/workflows/ci.yml"], /name: TypeScript CI/);
+  assert.match(files[".github/workflows/ci.yml"], /jobs:\n  test:/);
   assert.match(files[".github/workflows/ci.yml"], /run: npm test/);
   assert.doesNotMatch(files[".github/workflows/ci.yml"], /test:coverage/);
   assert.match(
@@ -109,7 +109,7 @@ test("does not render vitest config for ts-jest repos by profile", () => {
   const profiles = resolveServerProfiles(server);
   const files = renderManagedFiles(server, profiles);
 
-  assert.match(files[".github/workflows/ci.yml"], /name: TypeScript CI/);
+  assert.match(files[".github/workflows/ci.yml"], /jobs:\n  test:/);
   assert.equal(files["vitest.config.ts"], undefined);
   assert.match(files[".github/workflows/ci.yml"], /run: npm test/);
   assert.doesNotMatch(files[".github/workflows/ci.yml"], /test:coverage/);
