@@ -9,6 +9,7 @@ on:
 
 jobs:
   test:
+    name: Python CI
     runs-on: ubuntu-latest
     strategy:
       matrix:

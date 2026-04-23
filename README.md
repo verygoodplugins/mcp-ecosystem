@@ -105,6 +105,8 @@ Key requirements:
 - `config/ecosystem-policy.json` is the machine-readable source for shared CI/release/security policy and repo defaults.
 - `.github/workflows/propagate-templates.yml` opens or updates `chore/template-sync` PRs in downstream repos from `server-inventory.json`.
 - `scripts/render-managed-files.mjs` generates profile-aware managed workflows/config instead of force-copying one workflow shape into every repo.
+- Managed standard workflow check contexts are normalized in this repo first:
+  `TypeScript CI`, `Python CI`, and `Lint PR Title`.
 - `scripts/sync-template-baseline.mjs` updates managed dependency baselines with parsed JSON/TOML data and reports when lockfiles need regeneration.
 - `scripts/validate-sync.mjs` blocks PR creation when the generated diff is incompatible with the repo profile.
 - Org rulesets are the canonical branch-protection layer for MCP repos; repo-level
