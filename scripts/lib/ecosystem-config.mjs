@@ -572,6 +572,7 @@ ${updates.join("\n")}
 }
 
 function renderDependabotUpdate(server, ecosystem) {
+  const openPullRequestsLimit = ecosystem.packageEcosystem === "pip" ? 2 : 10;
   const lines = [
     `  - package-ecosystem: "${ecosystem.packageEcosystem}"`,
     `    directory: "${ecosystem.directory}"`,
@@ -587,20 +588,12 @@ function renderDependabotUpdate(server, ecosystem) {
       "      toolchain:",
       '        dependency-type: "development"',
     );
-  } else if (ecosystem.packageEcosystem === "pip") {
-    lines.push(
-      "    groups:",
-      "      runtime-dependencies:",
-      '        dependency-type: "production"',
-      "      dev-dependencies:",
-      '        dependency-type: "development"',
-    );
   }
 
   lines.push(
     "    commit-message:",
     '      prefix: "chore(deps)"',
-    "    open-pull-requests-limit: 10",
+    `    open-pull-requests-limit: ${openPullRequestsLimit}`,
   );
   return lines.join("\n");
 }

@@ -49,6 +49,9 @@ test("renders monorepo python managed files from inventory-style config", () => 
     files[".github/dependabot.yml"],
     /directory: "\/whatsapp-mcp-server"/,
   );
+  assert.doesNotMatch(files[".github/dependabot.yml"], /dev-dependencies:/);
+  assert.doesNotMatch(files[".github/dependabot.yml"], /runtime-dependencies:/);
+  assert.match(files[".github/dependabot.yml"], /open-pull-requests-limit: 2/);
   assert.match(files[".github/workflows/pr-title.yml"], /name: PR Title/);
   assert.match(files[".github/workflows/pr-title.yml"], /name: Lint PR Title/);
   assert.match(
