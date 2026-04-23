@@ -524,20 +524,25 @@ so policy stays consistent across generation and auditing.
 **Current org rulesets:**
 
 - `Protect MCP Main Branches` (`11708193`): covers MCP default branches, blocks
-  force-push/delete, requires PRs, linear history, and conversation resolution.
-  Bypass: `RepositoryRole:5` (admin) always.
+  force-push/delete, requires PRs, linear history, resolved conversations, and
+  `squash` merges only. Bypass: `RepositoryRole:5` (admin) always.
 - `MCP Python/Go CI` (`13414905`): requires `Python Lint`, `Go Lint`,
   `Go Build`, and `Python Tests` for `whatsapp-mcp` and `robinhood-mcp`.
-- `MCP TypeScript CI` (`13414915`): requires `test` for `mcp-*` TypeScript
-  repos (excluding `mcp-ecosystem`).
+- `MCP TypeScript CI` (`13414915`): still requires the legacy `test` check for
+  `mcp-*` TypeScript repos (excluding `mcp-ecosystem`) until propagated
+  templates converge on the new `TypeScript CI` check name.
+- `MCP WhatsApp Hybrid Checks` (`15448591`): requires `Version Consistency`,
+  `Go Vulnerability Check`, `CodeQL Analysis (Go)`, and
+  `CodeQL Analysis (Python)` for `whatsapp-mcp`.
 - `Copilot Auto Review` (`14736230`): triggers Copilot review on PR open/ready
   across the org, excluding automation branches. `review_on_push` is **off** —
   Copilot reviews once on open, not on every commit push.
-- `Protect Release Tags` (`11708252`): blocks delete/update on MCP release tags.
+- `Protect Release Tags` (`11708252`): blocks delete/update on `refs/tags/v*`
+  for MCP repos.
 
-Repo-level rulesets that duplicate org coverage were removed (`mcp-automem`,
-`mcp-edd`, `mcp-freescout`, `mcp-local-wp`). The org ruleset admin bypass
-covers all those repos.
+Audited MCP repos no longer carry duplicate repo-local rulesets or classic
+branch protection on `main`; org rulesets are now the canonical protection
+layer.
 
 **Required repo-level defaults:**
 
@@ -555,14 +560,14 @@ Apply those per-repo settings with
 
 The canonical logic lives in [`verygoodplugins/.github/.github/workflows/dependabot-auto-merge.yml`](https://github.com/verygoodplugins/.github/blob/main/.github/workflows/dependabot-auto-merge.yml). Each repo carries only a 6-line stub calling it. Edit the reusable workflow to change policy org-wide.
 
-| Update type | Policy |
-|---|---|
-| Patch — any dep | ✅ auto |
-| Indirect/transitive — any version | ✅ auto |
-| Minor — dev/test dep | ✅ auto |
-| Minor/patch — GitHub Actions | ✅ auto |
-| Minor — direct runtime dep | ❌ manual |
-| Major — any dep | ❌ manual |
+| Update type                       | Policy    |
+| --------------------------------- | --------- |
+| Patch — any dep                   | ✅ auto   |
+| Indirect/transitive — any version | ✅ auto   |
+| Minor — dev/test dep              | ✅ auto   |
+| Minor/patch — GitHub Actions      | ✅ auto   |
+| Minor — direct runtime dep        | ❌ manual |
+| Major — any dep                   | ❌ manual |
 
 **PR title enforcement rollout:**
 
@@ -570,6 +575,17 @@ The canonical logic lives in [`verygoodplugins/.github/.github/workflows/dependa
 - The org rulesets do not yet require `Lint PR Title` everywhere because several
   older repos still lack the workflow
 - After template propagation aligns the fleet, add `Lint PR Title` to the org CI rulesets
+
+**Managed check-name rollout:**
+
+- Standard TypeScript repos now emit `TypeScript CI`
+- Standard Python repos now emit `Python CI`
+- PR-title workflows now emit `Lint PR Title`
+- Hybrid Python+Go repos keep their explicit names such as `Version Consistency`,
+  `Python Lint`, `Go Lint`, `Go Build`, `CodeQL Analysis (Go)`, and
+  `Go Vulnerability Check`
+- After propagation aligns the fleet, replace legacy org required-check rules
+  like `test` with the normalized check contexts above
 
 If one repo needs a stricter or looser Dependabot policy, replace the stub with
 the full inline workflow (copied from the reusable source) and modify the `if:`

@@ -4,11 +4,6 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    groups:
-      runtime-dependencies:
-        dependency-type: "production"
-      dev-dependencies:
-        dependency-type: "development"
     commit-message:
       prefix: "chore(deps)"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 2

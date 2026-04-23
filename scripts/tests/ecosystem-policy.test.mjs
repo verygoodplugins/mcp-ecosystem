@@ -39,6 +39,7 @@ test("renders monorepo python managed files from inventory-style config", () => 
     files[".github/workflows/ci.yml"],
     /pytest --cov=main --cov=whatsapp --cov=audio --cov-report=xml/,
   );
+  assert.match(files[".github/workflows/ci.yml"], /name: Python CI/);
   assert.match(
     files[".github/workflows/ci.yml"],
     /files: whatsapp-mcp-server\/coverage\.xml/,
@@ -48,7 +49,11 @@ test("renders monorepo python managed files from inventory-style config", () => 
     files[".github/dependabot.yml"],
     /directory: "\/whatsapp-mcp-server"/,
   );
+  assert.doesNotMatch(files[".github/dependabot.yml"], /dev-dependencies:/);
+  assert.doesNotMatch(files[".github/dependabot.yml"], /runtime-dependencies:/);
+  assert.match(files[".github/dependabot.yml"], /open-pull-requests-limit: 2/);
   assert.match(files[".github/workflows/pr-title.yml"], /name: PR Title/);
+  assert.match(files[".github/workflows/pr-title.yml"], /name: Lint PR Title/);
   assert.match(
     files[".github/workflows/dependabot-auto-merge.yml"],
     /name: Dependabot auto-merge/,
@@ -73,6 +78,7 @@ test("renders release-please simple workflow for jest repos", () => {
   const files = renderManagedFiles(server, profiles);
 
   assert.equal(profiles.release.id, "release-please-simple");
+  assert.match(files[".github/workflows/ci.yml"], /jobs:\n  test:/);
   assert.match(files[".github/workflows/ci.yml"], /run: npm test/);
   assert.doesNotMatch(files[".github/workflows/ci.yml"], /test:coverage/);
   assert.match(
@@ -103,6 +109,7 @@ test("does not render vitest config for ts-jest repos by profile", () => {
   const profiles = resolveServerProfiles(server);
   const files = renderManagedFiles(server, profiles);
 
+  assert.match(files[".github/workflows/ci.yml"], /jobs:\n  test:/);
   assert.equal(files["vitest.config.ts"], undefined);
   assert.match(files[".github/workflows/ci.yml"], /run: npm test/);
   assert.doesNotMatch(files[".github/workflows/ci.yml"], /test:coverage/);
@@ -172,7 +179,10 @@ test("renders go-aware monorepo workflows for whatsapp-mcp style repos", () => {
     /CodeQL Analysis \(Go\)/,
   );
   assert.match(files[".github/workflows/security.yml"], /govulncheck/);
-  assert.match(files[".github/workflows/release-please.yml"], /Publish Release Artifacts/);
+  assert.match(
+    files[".github/workflows/release-please.yml"],
+    /Publish Release Artifacts/,
+  );
   assert.match(
     files[".github/workflows/release-please.yml"],
     /ref: \$\{\{ needs\.release-please\.outputs\.sha \}\}/,
