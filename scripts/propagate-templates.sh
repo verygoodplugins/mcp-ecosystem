@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Propagate source-of-truth templates from mcp-ecosystem to downstream MCP servers.
 # Usage: ./propagate-templates.sh [--server <name>] [--dry-run]
 
@@ -67,6 +67,7 @@ require_command git
 require_command gh
 require_command jq
 require_command node
+require_command npm
 
 TEMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TEMP_DIR"' EXIT
@@ -136,6 +137,12 @@ for SERVER_JSON in "${SERVERS[@]}"; do
         echo "$VALIDATION_OUTPUT" | sed 's/^/   ! /'
         echo ""
         continue
+    fi
+
+    # Regenerate lockfile if package.json changed
+    if [[ "$SERVER_TYPE" == "typescript" && -n "$(git -C "$REPO_DIR" diff --name-only -- package.json)" ]]; then
+        echo "   Regenerating package-lock.json..."
+        (cd "$REPO_DIR" && npm install --package-lock-only --ignore-scripts) >/dev/null
     fi
 
     if [[ -z "$(git -C "$REPO_DIR" status --short)" ]]; then
