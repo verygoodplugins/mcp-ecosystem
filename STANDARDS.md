@@ -24,7 +24,7 @@ This scaffolds a complete project with all required files, configs, and workflow
 
 ### Requirements
 
-- **Node.js:** ≥18.0.0
+- **Node.js:** ≥22.0.0
 - **TypeScript:** ES2022 target, strict mode
 - **MCP SDK:** @modelcontextprotocol/sdk ^1.25.1
 - **Package Manager:** npm
@@ -72,7 +72,7 @@ server-name/
     "mcp-{name}": "dist/index.js"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.0.0"
   },
   "mcpName": "io.github.verygoodplugins/mcp-{name}",
   "scripts": {
@@ -489,14 +489,79 @@ updates:
       interval: "weekly"
     groups:
       # npm / TypeScript
-      runtime-dependencies:
+      security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      production-minor-patch:
+        applies-to: version-updates
         dependency-type: "production"
-      toolchain:
+        update-types:
+          - "minor"
+          - "patch"
+      eslint-minor-patch:
+        applies-to: version-updates
         dependency-type: "development"
+        patterns:
+          - "@eslint/*"
+          - "eslint"
+          - "eslint-*"
+          - "typescript-eslint"
+        update-types:
+          - "minor"
+          - "patch"
+      typescript-minor-patch:
+        applies-to: version-updates
+        dependency-type: "development"
+        patterns:
+          - "@types/*"
+          - "tsx"
+          - "typescript"
+        update-types:
+          - "minor"
+          - "patch"
+      test-tooling-minor-patch:
+        applies-to: version-updates
+        dependency-type: "development"
+        patterns:
+          - "@jest/*"
+          - "@vitest/*"
+          - "jest"
+          - "jest-*"
+          - "ts-jest"
+          - "vitest"
+        update-types:
+          - "minor"
+          - "patch"
+      development-minor-patch:
+        applies-to: version-updates
+        dependency-type: "development"
+        exclude-patterns:
+          - "@eslint/*"
+          - "@jest/*"
+          - "@types/*"
+          - "@vitest/*"
+          - "eslint"
+          - "eslint-*"
+          - "jest"
+          - "jest-*"
+          - "ts-jest"
+          - "tsx"
+          - "typescript"
+          - "typescript-eslint"
+          - "vitest"
+        update-types:
+          - "minor"
+          - "patch"
       # pip / Python
       dev-dependencies:
         dependency-type: "development"
 ```
+
+For npm version updates, every grouped update must be scoped to `minor` and
+`patch`. Keep production majors and dev-tooling majors ungrouped so Dependabot
+opens individual PRs for manual review. Only the `security-updates` group may
+use a wildcard pattern that matches all packages.
 
 ### Branch Protection And Auto-Merge
 
@@ -898,7 +963,7 @@ server-name/
   "compatibility": {
     "claude_desktop": ">=1.0.0",
     "platforms": ["darwin", "win32", "linux"],
-    "runtimes": { "node": ">=18.0.0" }
+    "runtimes": { "node": ">=22.0.0" }
   }
 }
 ```

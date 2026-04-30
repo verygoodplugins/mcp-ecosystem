@@ -56,7 +56,7 @@
           "vitest"
         ]
       },
-      "nodeVersion": "20",
+      "nodeVersions": ["22", "24"],
       "testCommand": "npm test",
       "coverageCommand": "npm run test:coverage"
     },
@@ -76,7 +76,7 @@
           "typescript-eslint"
         ]
       },
-      "nodeVersion": "20",
+      "nodeVersions": ["22", "24"],
       "testCommand": "npm test"
     },
     "ts-jest-integration": {
@@ -95,7 +95,7 @@
           "typescript-eslint"
         ]
       },
-      "nodeVersion": "20",
+      "nodeVersions": ["22", "24"],
       "testCommand": "npm test",
       "integrationTestCommand": "npm run test:integration",
       "integrationTestWhen": "push-main"

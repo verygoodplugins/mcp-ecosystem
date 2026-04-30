@@ -6,6 +6,22 @@ import {
   resolveServerProfiles,
 } from "../lib/ecosystem-config.mjs";
 
+function assertNoVersionUpdateWildcardGroup(dependabotConfig) {
+  const groupsSection =
+    dependabotConfig.match(/\n    groups:\n([\s\S]*?)\n    commit-message:/)?.[1] ??
+    "";
+  const groupBlocks = groupsSection.split(/\n      (?=[a-z0-9-]+:)/);
+
+  for (const groupBlock of groupBlocks) {
+    if (
+      groupBlock.includes("applies-to: version-updates") &&
+      /patterns:\n(?:\s+- .+\n)*\s+- "\*"/.test(groupBlock)
+    ) {
+      assert.fail(`Version-update group must not match every npm package:\n${groupBlock}`);
+    }
+  }
+}
+
 test("renders monorepo python managed files from inventory-style config", () => {
   const server = {
     name: "whatsapp-mcp",
@@ -58,6 +74,39 @@ test("renders monorepo python managed files from inventory-style config", () => 
     files[".github/workflows/dependabot-auto-merge.yml"],
     /name: Dependabot auto-merge/,
   );
+});
+
+test("renders TypeScript CI matrix and scoped npm Dependabot groups", () => {
+  const server = {
+    name: "mcp-evernote",
+    type: "typescript",
+    packageLayout: "root",
+    packagePath: ".",
+    ciProfile: "ts-vitest",
+    releaseProfile: "release-please-manifest",
+    securityProfile: "strict",
+    templateTier: "compatible",
+    propagate: true,
+  };
+
+  const profiles = resolveServerProfiles(server);
+  const files = renderManagedFiles(server, profiles);
+  const ci = files[".github/workflows/ci.yml"];
+  const dependabot = files[".github/dependabot.yml"];
+
+  assert.match(ci, /node-version: \["22", "24"\]/);
+  assert.match(ci, /node-version: \$\{\{ matrix\.node-version \}\}/);
+  assert.doesNotMatch(ci, /node-version:\s*["']?(?:18|20)["']?/);
+
+  assert.match(dependabot, /security-updates:[\s\S]*applies-to: security-updates/);
+  assert.match(dependabot, /security-updates:[\s\S]*patterns:\n\s+- "\*"/);
+  assert.match(dependabot, /production-minor-patch:[\s\S]*dependency-type: "production"[\s\S]*update-types:\n\s+- "minor"\n\s+- "patch"/);
+  assert.match(dependabot, /development-minor-patch:[\s\S]*exclude-patterns:/);
+  assert.match(dependabot, /eslint-minor-patch:/);
+  assert.match(dependabot, /typescript-minor-patch:/);
+  assert.match(dependabot, /test-tooling-minor-patch:/);
+  assert.doesNotMatch(dependabot, /\n    ignore:\n/);
+  assertNoVersionUpdateWildcardGroup(dependabot);
 });
 
 test("renders release-please simple workflow for jest repos", () => {
