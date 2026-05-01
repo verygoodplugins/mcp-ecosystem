@@ -8,6 +8,8 @@ dist/
 .env
 .env.local
 .env.*.local
+.mcpregistry_registry_token
+.mcpregistry_github_token
 
 # IDE
 .idea/

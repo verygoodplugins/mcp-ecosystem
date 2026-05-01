@@ -289,6 +289,7 @@ function renderCiWorkflow(server, profiles) {
 }
 
 function renderTypescriptCiWorkflow(server, ciProfile) {
+  const nodeVersions = normalizeNodeVersions(ciProfile);
   const coverageStep = ciProfile.coverageCommand
     ? `
       - name: Test coverage
@@ -314,12 +315,15 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [${nodeVersions.map((version) => `"${version}"`).join(", ")}]
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "${ciProfile.nodeVersion}"
+          node-version: \${{ matrix.node-version }}
           cache: "npm"
 
       - name: Install dependencies
@@ -334,6 +338,16 @@ jobs:
       - name: Test
         run: ${ciProfile.testCommand}${coverageStep}${integrationStep}
 `;
+}
+
+function normalizeNodeVersions(ciProfile) {
+  if (Array.isArray(ciProfile.nodeVersions) && ciProfile.nodeVersions.length) {
+    return ciProfile.nodeVersions.map(String);
+  }
+  if (ciProfile.nodeVersion) {
+    return [String(ciProfile.nodeVersion)];
+  }
+  return ["22"];
 }
 
 function renderPythonCiWorkflow(server, ciProfile) {
@@ -458,7 +472,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
 
       - run: npm ci
@@ -580,13 +594,7 @@ function renderDependabotUpdate(server, ecosystem) {
   ];
 
   if (ecosystem.packageEcosystem === "npm") {
-    lines.push(
-      "    groups:",
-      "      runtime-dependencies:",
-      '        dependency-type: "production"',
-      "      toolchain:",
-      '        dependency-type: "development"',
-    );
+    lines.push(...renderNpmDependabotGroups());
   }
 
   lines.push(
@@ -595,6 +603,76 @@ function renderDependabotUpdate(server, ecosystem) {
     `    open-pull-requests-limit: ${openPullRequestsLimit}`,
   );
   return lines.join("\n");
+}
+
+function renderNpmDependabotGroups() {
+  return [
+    "    groups:",
+    "      security-updates:",
+    "        applies-to: security-updates",
+    "        patterns:",
+    '          - "*"',
+    "      production-minor-patch:",
+    "        applies-to: version-updates",
+    '        dependency-type: "production"',
+    "        update-types:",
+    '          - "minor"',
+    '          - "patch"',
+    "      eslint-minor-patch:",
+    "        applies-to: version-updates",
+    '        dependency-type: "development"',
+    "        patterns:",
+    '          - "@eslint/*"',
+    '          - "eslint"',
+    '          - "eslint-*"',
+    '          - "typescript-eslint"',
+    "        update-types:",
+    '          - "minor"',
+    '          - "patch"',
+    "      typescript-minor-patch:",
+    "        applies-to: version-updates",
+    '        dependency-type: "development"',
+    "        patterns:",
+    '          - "@types/*"',
+    '          - "tsx"',
+    '          - "typescript"',
+    "        update-types:",
+    '          - "minor"',
+    '          - "patch"',
+    "      test-tooling-minor-patch:",
+    "        applies-to: version-updates",
+    '        dependency-type: "development"',
+    "        patterns:",
+    '          - "@jest/*"',
+    '          - "@vitest/*"',
+    '          - "jest"',
+    '          - "jest-*"',
+    '          - "ts-jest"',
+    '          - "vitest"',
+    "        update-types:",
+    '          - "minor"',
+    '          - "patch"',
+    "      development-minor-patch:",
+    "        applies-to: version-updates",
+    '        dependency-type: "development"',
+    "        exclude-patterns:",
+    '          - "@eslint/*"',
+    '          - "@jest/*"',
+    '          - "@types/*"',
+    '          - "@vitest/*"',
+    '          - "eslint"',
+    '          - "eslint-*"',
+    '          - "jest"',
+    '          - "jest-*"',
+    '          - "ts-jest"',
+    '          - "tsx"',
+    '          - "typescript"',
+    '          - "typescript-eslint"',
+    '          - "vitest"',
+    "        update-types:",
+    '          - "minor"',
+    '          - "patch"',
+  ];
 }
 
 function renderReleaseWorkflow(server, profiles) {
@@ -643,7 +721,7 @@ function renderTypescriptReleaseWorkflow(server, releaseProfile) {
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "npm"
 
       - run: npm ci
