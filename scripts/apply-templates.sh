@@ -95,6 +95,25 @@ done
 # Copy dependabot config
 copy_file "$TEMPLATE_DIR/$SERVER_TYPE/.github/dependabot.yml" "$SERVER_PATH/.github/dependabot.yml" ".github/dependabot.yml"
 
+# Copy GitHub hygiene files (CODEOWNERS, SECURITY.md, PR + issue templates)
+echo ""
+echo "🧰 Copying GitHub hygiene files..."
+mkdir -p "$SERVER_PATH/.github/ISSUE_TEMPLATE"
+HYGIENE_FILES=(
+    ".github/CODEOWNERS"
+    ".github/SECURITY.md"
+    ".github/PULL_REQUEST_TEMPLATE.md"
+    ".github/ISSUE_TEMPLATE/config.yml"
+    ".github/ISSUE_TEMPLATE/bug_report.yml"
+    ".github/ISSUE_TEMPLATE/feature_request.yml"
+)
+for relpath in "${HYGIENE_FILES[@]}"; do
+    src="$TEMPLATE_DIR/$SERVER_TYPE/$relpath"
+    if [[ -f "$src" ]]; then
+        copy_file "$src" "$SERVER_PATH/$relpath" "$relpath"
+    fi
+done
+
 # Copy config files
 echo ""
 echo "⚙️  Copying config files..."

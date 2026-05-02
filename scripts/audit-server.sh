@@ -198,6 +198,24 @@ else
     ((WARNINGS++))
 fi
 
+# GitHub hygiene files (governance + community standards)
+HYGIENE_FILES=(
+    ".github/CODEOWNERS"
+    ".github/SECURITY.md"
+    ".github/PULL_REQUEST_TEMPLATE.md"
+    ".github/ISSUE_TEMPLATE/config.yml"
+    ".github/ISSUE_TEMPLATE/bug_report.yml"
+    ".github/ISSUE_TEMPLATE/feature_request.yml"
+)
+for relpath in "${HYGIENE_FILES[@]}"; do
+    if [[ -f "$REPO_ROOT/$relpath" ]]; then
+        echo "✅ $relpath exists"
+    else
+        echo "⚠️  $relpath missing"
+        ((WARNINGS++))
+    fi
+done
+
 if [[ -n "$SERVER_PROFILE_JSON" && -x "$(command -v jq 2>/dev/null)" ]]; then
     while IFS= read -r required_file; do
         [[ -z "$required_file" ]] && continue

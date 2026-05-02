@@ -1,4 +1,4 @@
-# Release Please - Automated versioning and npm publishing
+# Release Please - Automated versioning and dual-registry publishing
 #
 # How it works:
 # 1. Every push to main with conventional commits updates a "Release PR"
@@ -6,7 +6,7 @@
 #    - Updates version in package.json
 #    - Updates CHANGELOG.md
 #    - Creates a GitHub Release with tag
-#    - Triggers the npm publish job below
+#    - Triggers npm publish (primary) + GitHub Packages publish (mirror)
 #
 # Commit message format:
 #   feat: add new feature          → minor version bump
@@ -14,10 +14,18 @@
 #   feat!: breaking change         → major version bump
 #   chore/docs: no version bump
 #
-# npm Publishing:
-#   Uses Trusted Publishing (OIDC) - no NPM_TOKEN needed!
+# npm Publishing (primary install path):
+#   Uses Trusted Publishing (OIDC) - no NPM_TOKEN needed.
 #   Requires Node 24+ for npm 11.5.1+ OIDC support.
 #   Configure at: https://www.npmjs.com/package/@verygoodplugins/<package-name>/access
+#
+# GitHub Packages (org mirror):
+#   Same package/version published to npm.pkg.github.com using GITHUB_TOKEN.
+#   The mirror rebuilds from source in a separate job, so the tarball is not
+#   guaranteed to be byte-identical to the npmjs.com one.
+#   Mirror only — npmjs stays the default install path because GH Packages
+#   requires a PAT with read:packages even for public packages.
+#   Failures here do NOT fail the release (continue-on-error).
 #
 # RELEASE_PLEASE_TOKEN:
 #   Uses org-level PAT so the Release PR triggers CI workflows.
@@ -71,3 +79,28 @@ jobs:
 
       # Trusted Publishing: No NPM_TOKEN needed!
       - run: npm publish --provenance --access public
+
+  gh-packages-publish:
+    needs: [release-please, npm-publish]
+    if: ${{ needs.release-please.outputs.release_created }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@verygoodplugins"
+
+      - run: npm install
+      - run: npm run build
+
+      # GitHub Packages auth uses GITHUB_TOKEN; no provenance support there.
+      - run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
