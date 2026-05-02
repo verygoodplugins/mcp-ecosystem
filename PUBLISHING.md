@@ -126,9 +126,11 @@ Releases are automatic via release-please:
 
 ## GitHub Packages Mirror (TypeScript)
 
-Every TypeScript release also mirrors the same tarball to GitHub Packages
+Every TypeScript release also mirrors the same package/version to GitHub Packages
 (`npm.pkg.github.com`). This is automatic and runs after `npm-publish` in
-`release-please.yml`.
+`release-please.yml`. The mirror job rebuilds from source, so the tarball is not
+guaranteed to be byte-identical to the npmjs.com one — the version and contents
+match by construction, not by checksum.
 
 **Why dual-publish:** GitHub Packages gives the org a native package view
 under [github.com/orgs/verygoodplugins/packages](https://github.com/orgs/verygoodplugins/packages)

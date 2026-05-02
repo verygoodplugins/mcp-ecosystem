@@ -78,10 +78,10 @@ services:
   mcp-server:
     image: ghcr.io/verygoodplugins/mcp-{name}:stable
     restart: unless-stopped
-	    environment:
-	      SERVER_TOKEN_ENV: xxx
-	      MCP_HTTP_AUTH_TOKEN: change-this-random-secret
-	    ports:
+    environment:
+      SERVER_TOKEN_ENV: xxx
+      MCP_HTTP_AUTH_TOKEN: change-this-random-secret
+    ports:
       - "3000:3000"
 ```
 

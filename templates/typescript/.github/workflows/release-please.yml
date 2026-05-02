@@ -20,7 +20,9 @@
 #   Configure at: https://www.npmjs.com/package/@verygoodplugins/<package-name>/access
 #
 # GitHub Packages (org mirror):
-#   Same tarball pushed to npm.pkg.github.com using GITHUB_TOKEN.
+#   Same package/version published to npm.pkg.github.com using GITHUB_TOKEN.
+#   The mirror rebuilds from source in a separate job, so the tarball is not
+#   guaranteed to be byte-identical to the npmjs.com one.
 #   Mirror only — npmjs stays the default install path because GH Packages
 #   requires a PAT with read:packages even for public packages.
 #   Failures here do NOT fail the release (continue-on-error).

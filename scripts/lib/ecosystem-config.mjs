@@ -800,7 +800,8 @@ ${releaseConfig}
           node-version: "24"
           registry-url: "https://registry.npmjs.org"
 
-      - run: npm ci
+      # Use npm install for cross-version lockfile compatibility
+      - run: npm install
       - run: npm run build
       - run: npm test
       - run: npm publish --provenance --access public
