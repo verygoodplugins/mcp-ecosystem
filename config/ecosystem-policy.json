@@ -15,7 +15,8 @@
       "dependabotConfig",
       "releaseWorkflow",
       "eslintConfig",
-      "vitestConfig"
+      "vitestConfig",
+      "hygieneTemplates"
     ],
     "compatible": [
       "prTitleWorkflow",
@@ -25,7 +26,8 @@
       "dependabotConfig",
       "releaseWorkflow",
       "eslintConfig",
-      "vitestConfig"
+      "vitestConfig",
+      "hygieneTemplates"
     ],
     "minimal": [
       "prTitleWorkflow",
@@ -33,7 +35,8 @@
       "ciWorkflow",
       "securityWorkflow",
       "dependabotConfig",
-      "releaseWorkflow"
+      "releaseWorkflow",
+      "hygieneTemplates"
     ]
   },
   "ciProfiles": {

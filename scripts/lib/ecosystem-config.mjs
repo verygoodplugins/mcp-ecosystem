@@ -131,6 +131,9 @@ export function renderManagedFiles(
   ) {
     files["vitest.config.ts"] = renderVitestConfig(normalized, profiles);
   }
+  if (shouldManageFeature("hygieneTemplates", normalized, profiles)) {
+    Object.assign(files, renderHygieneFiles(normalized.type));
+  }
 
   return files;
 }
@@ -279,6 +282,29 @@ function renderStaticWorkflowTemplate(serverType, workflowName) {
     workflowName,
   );
   return fs.readFileSync(templatePath, "utf8");
+}
+
+const HYGIENE_FILES = [
+  ".github/CODEOWNERS",
+  ".github/SECURITY.md",
+  ".github/PULL_REQUEST_TEMPLATE.md",
+  ".github/ISSUE_TEMPLATE/config.yml",
+  ".github/ISSUE_TEMPLATE/bug_report.yml",
+  ".github/ISSUE_TEMPLATE/feature_request.yml",
+];
+
+function renderHygieneFiles(serverType) {
+  const files = {};
+  for (const relativePath of HYGIENE_FILES) {
+    const templatePath = path.join(
+      repoRoot,
+      "templates",
+      serverType,
+      relativePath,
+    );
+    files[relativePath] = fs.readFileSync(templatePath, "utf8");
+  }
+  return files;
 }
 
 function renderCiWorkflow(server, profiles) {
@@ -777,7 +803,31 @@ ${releaseConfig}
       - run: npm ci
       - run: npm run build
       - run: npm test
-      - run: npm publish --provenance --access public${extensionJob}
+      - run: npm publish --provenance --access public
+
+  gh-packages-publish:
+    needs: [release-please, npm-publish]
+    if: \${{ needs.release-please.outputs.release_created }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@verygoodplugins"
+
+      - run: npm install
+      - run: npm run build
+
+      - run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: \${{ secrets.GITHUB_TOKEN }}${extensionJob}
 `;
 }
 

@@ -48,6 +48,13 @@ server-name/
 │   │   ├── pr-title.yml
 │   │   ├── release-please.yml
 │   │   └── security.yml
+│   ├── ISSUE_TEMPLATE/
+│   │   ├── bug_report.yml
+│   │   ├── feature_request.yml
+│   │   └── config.yml
+│   ├── CODEOWNERS
+│   ├── SECURITY.md
+│   ├── PULL_REQUEST_TEMPLATE.md
 │   └── dependabot.yml
 ├── package.json
 ├── tsconfig.json
@@ -327,6 +334,12 @@ select = ["E", "F", "I", "N", "W", "UP"]
 | `.github/workflows/release*.yml`              | Automated releases                                               |
 | `.github/workflows/security.yml`              | Security scanning                                                |
 | `.github/dependabot.yml`                      | Dependency updates                                               |
+| `.github/CODEOWNERS`                          | Default reviewer routing                                         |
+| `.github/SECURITY.md`                         | Vulnerability reporting policy (Private Vulnerability Reporting) |
+| `.github/PULL_REQUEST_TEMPLATE.md`            | Conventional PR scaffold                                         |
+| `.github/ISSUE_TEMPLATE/bug_report.yml`       | Forms-style bug template                                         |
+| `.github/ISSUE_TEMPLATE/feature_request.yml`  | Forms-style feature template                                     |
+| `.github/ISSUE_TEMPLATE/config.yml`           | Disables blank issues; routes security reports to Advisories     |
 
 ### README.md Template
 
@@ -459,6 +472,7 @@ Example:
    - Creates release PR with changelog
    - Publishes to npm/PyPI on release
    - Uses OIDC Trusted Publishing (no npm/PyPI secrets)
+   - TypeScript releases also mirror to GitHub Packages (`npm.pkg.github.com`) via `GITHUB_TOKEN` after the npm publish completes; that job is `continue-on-error: true` so npmjs success is what defines a successful release. See [PUBLISHING.md](./PUBLISHING.md#github-packages-mirror-typescript) for consumer-side caveats.
    - **Must use `RELEASE_PLEASE_TOKEN`** (org-level PAT) so the Release PR triggers CI workflows. PRs created by the default `GITHUB_TOKEN` don't trigger other workflows (GitHub security feature), which blocks required status checks.
    - Uses manifest mode (`release-please-config.json` + `.release-please-manifest.json`)
 

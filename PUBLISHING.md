@@ -34,6 +34,12 @@ Use this checklist when publishing a new MCP server or updating an existing one.
 - [ ] `.github/workflows/security.yml` exists
 - [ ] `.github/dependabot.yml` exists
 
+### Governance & community standards
+- [ ] `.github/CODEOWNERS` exists
+- [ ] `.github/SECURITY.md` exists (Private Vulnerability Reporting enabled in repo settings)
+- [ ] `.github/PULL_REQUEST_TEMPLATE.md` exists
+- [ ] `.github/ISSUE_TEMPLATE/` contains `bug_report.yml`, `feature_request.yml`, `config.yml`
+
 ### Security
 - [ ] No hardcoded secrets
 - [ ] All secrets in environment variables
@@ -114,6 +120,62 @@ Releases are automatic via release-please:
    - Update CHANGELOG.md
    - Create GitHub Release
    - Publish to npm
+   - Mirror to GitHub Packages (see below)
+
+---
+
+## GitHub Packages Mirror (TypeScript)
+
+Every TypeScript release also mirrors the same tarball to GitHub Packages
+(`npm.pkg.github.com`). This is automatic and runs after `npm-publish` in
+`release-please.yml`.
+
+**Why dual-publish:** GitHub Packages gives the org a native package view
+under [github.com/orgs/verygoodplugins/packages](https://github.com/orgs/verygoodplugins/packages)
+and a backup install source if npmjs.com has an outage. **npmjs.com remains
+the default install path** — that's the URL we publish in READMEs and the MCP
+Registry.
+
+**Important consumer-side caveat:**
+GitHub Packages requires `read:packages` PAT auth for `npm install` **even on
+public packages**. Don't redirect downstream installs there unless you're
+prepared to handle that auth flow.
+
+### Setup
+
+No setup is required per repo. The job uses `GITHUB_TOKEN` automatically
+provisioned by Actions, scoped to `packages: write` in the workflow. The
+package name is already scoped to `@verygoodplugins/...`, which matches the
+GitHub org slug — that's the only requirement GitHub Packages enforces on
+package names.
+
+### Failure handling
+
+The mirror job is `continue-on-error: true`. Failure to publish to GitHub
+Packages does not fail the release. If the npmjs publish succeeded, the
+release is considered successful — the mirror is a nice-to-have.
+
+If you ever rerun a release on the same version, the mirror push will 409
+(version already exists). That's fine: the npm primary publish is gated by
+`npm-publish` job's own version check, and the mirror's 409 is swallowed by
+`continue-on-error`.
+
+### Installing from GitHub Packages (advanced)
+
+For the rare consumer who wants the GH Packages copy:
+
+```bash
+# In project .npmrc (DO NOT commit credentials):
+@verygoodplugins:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=<PAT_with_read:packages>
+```
+
+```bash
+npm install @verygoodplugins/mcp-<name>
+```
+
+For everyone else: `npm install @verygoodplugins/mcp-<name>` from npmjs is
+unauthenticated and just works.
 
 ---
 

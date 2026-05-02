@@ -109,6 +109,87 @@ test("renders TypeScript CI matrix and scoped npm Dependabot groups", () => {
   assertNoVersionUpdateWildcardGroup(dependabot);
 });
 
+test("renders GitHub Packages mirror publish job for TypeScript releases", () => {
+  const server = {
+    name: "mcp-evernote",
+    type: "typescript",
+    packageLayout: "root",
+    packagePath: ".",
+    ciProfile: "ts-vitest",
+    releaseProfile: "release-please-manifest",
+    securityProfile: "strict",
+    templateTier: "compatible",
+    propagate: true,
+  };
+
+  const profiles = resolveServerProfiles(server);
+  const files = renderManagedFiles(server, profiles);
+  const releaseWorkflow = files[".github/workflows/release-please.yml"];
+
+  assert.match(releaseWorkflow, /npm publish --provenance --access public/);
+  assert.match(releaseWorkflow, /gh-packages-publish:/);
+  assert.match(releaseWorkflow, /needs: \[release-please, npm-publish\]/);
+  assert.match(releaseWorkflow, /packages: write/);
+  assert.match(releaseWorkflow, /continue-on-error: true/);
+  assert.match(releaseWorkflow, /registry-url: "https:\/\/npm\.pkg\.github\.com"/);
+  assert.match(releaseWorkflow, /scope: "@verygoodplugins"/);
+  assert.match(
+    releaseWorkflow,
+    /NODE_AUTH_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/,
+  );
+});
+
+test("renders GitHub hygiene files when hygieneTemplates feature is enabled", () => {
+  const server = {
+    name: "mcp-evernote",
+    type: "typescript",
+    packageLayout: "root",
+    packagePath: ".",
+    ciProfile: "ts-vitest",
+    releaseProfile: "release-please-manifest",
+    securityProfile: "strict",
+    templateTier: "compatible",
+    propagate: true,
+  };
+
+  const files = renderManagedFiles(server);
+
+  assert.match(files[".github/CODEOWNERS"], /@jack-arturo/);
+  assert.match(files[".github/SECURITY.md"], /Security Policy/);
+  assert.match(
+    files[".github/SECURITY.md"],
+    /security\/advisories\/new/,
+  );
+  assert.match(files[".github/PULL_REQUEST_TEMPLATE.md"], /## Summary/);
+  assert.match(files[".github/ISSUE_TEMPLATE/config.yml"], /blank_issues_enabled: false/);
+  assert.match(files[".github/ISSUE_TEMPLATE/bug_report.yml"], /name: Bug report/);
+  assert.match(
+    files[".github/ISSUE_TEMPLATE/feature_request.yml"],
+    /name: Feature request/,
+  );
+});
+
+test("hygiene files render for python servers too", () => {
+  const server = {
+    name: "mcp-weather",
+    type: "python",
+    packageLayout: "root",
+    packagePath: ".",
+    ciProfile: "py-src-layout",
+    releaseProfile: "pypi-oidc",
+    securityProfile: "strict",
+    templateTier: "compatible",
+    propagate: true,
+  };
+
+  const files = renderManagedFiles(server);
+
+  assert.match(files[".github/CODEOWNERS"], /@jack-arturo/);
+  assert.match(files[".github/SECURITY.md"], /Security Policy/);
+  assert.match(files[".github/PULL_REQUEST_TEMPLATE.md"], /pytest/);
+  assert.match(files[".github/ISSUE_TEMPLATE/bug_report.yml"], /Python version/);
+});
+
 test("renders release-please simple workflow for jest repos", () => {
   const server = {
     name: "mcp-freescout",

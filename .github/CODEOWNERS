@@ -1,0 +1,8 @@
+# Default reviewer for everything in this repo.
+*       @jack-arturo
+
+# Templates and propagation logic — extra careful review.
+/templates/      @jack-arturo
+/scripts/lib/    @jack-arturo
+/scripts/tests/  @jack-arturo
+/config/         @jack-arturo
