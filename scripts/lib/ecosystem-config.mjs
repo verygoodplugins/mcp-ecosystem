@@ -747,7 +747,7 @@ function renderTypescriptReleaseWorkflow(server, releaseProfile) {
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version: "22"
           cache: "npm"
 
       - run: npm ci
@@ -770,6 +770,9 @@ on:
 permissions:
   contents: write
   pull-requests: write
+
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
 
 jobs:
   release-please:
@@ -797,10 +800,11 @@ ${releaseConfig}
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version: "22"
           registry-url: "https://registry.npmjs.org"
 
       # Use npm install for cross-version lockfile compatibility
+      - run: npm install -g npm@11
       - run: npm install
       - run: npm run build
       - run: npm test
@@ -819,10 +823,11 @@ ${releaseConfig}
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version: "22"
           registry-url: "https://npm.pkg.github.com"
           scope: "@verygoodplugins"
 
+      - run: npm install -g npm@11
       - run: npm install
       - run: npm run build
 
