@@ -466,6 +466,7 @@ Example:
    - Run linter
    - Run tests
    - Build
+   - Includes `merge_group` so required checks run inside GitHub merge queue
 
 2. **release-please.yml** (TypeScript) or **release.yml** (Python)
    - Triggered on push to main
@@ -489,8 +490,8 @@ Example:
    - Runs on `pull_request_target` for Dependabot PRs only
    - Uses CI + org rulesets as the safety gate
    - Thin stub that delegates all logic to the reusable workflow at [`verygoodplugins/.github`](https://github.com/verygoodplugins/.github/blob/main/.github/workflows/dependabot-auto-merge.yml)
-   - Auto-merges: patch updates, indirect/transitive deps (any version), dev-dep minor bumps, and GitHub Actions updates
-   - Major updates to direct runtime deps always require manual review
+   - Auto-merges non-major updates after required checks pass
+   - Major updates always require manual review
 
 ### Dependabot Configuration
 
@@ -580,7 +581,9 @@ use a wildcard pattern that matches all packages.
 ### Branch Protection And Auto-Merge
 
 Branch protection and required CI checks are managed centrally with GitHub
-organization rulesets. Repo-level booleans and workflow files stay in each repo
+organization rulesets where GitHub supports org-level enforcement. Merge queue
+is repository-level only, so enable it per repository after the CI workflow has a
+`merge_group` trigger. Repo-level booleans and workflow files stay in each repo
 because GitHub does not provide org defaults for them.
 
 `server-inventory.json` is the control plane for repo-specific capability data.
@@ -628,6 +631,7 @@ layer.
 - `allow_auto_merge=true`
 - `delete_branch_on_merge=true`
 - `allow_squash_merge=true`
+- merge queue enabled on `main` after required CI checks are configured
 - vulnerability alerts enabled
 - automated security fixes enabled
 - `.github/workflows/dependabot-auto-merge.yml`
@@ -641,12 +645,16 @@ The canonical logic lives in [`verygoodplugins/.github/.github/workflows/dependa
 
 | Update type                       | Policy    |
 | --------------------------------- | --------- |
-| Patch — any dep                   | ✅ auto   |
-| Indirect/transitive — any version | ✅ auto   |
-| Minor — dev/test dep              | ✅ auto   |
-| Minor/patch — GitHub Actions      | ✅ auto   |
-| Minor — direct runtime dep        | ❌ manual |
-| Major — any dep                   | ❌ manual |
+| Non-major — any ecosystem         | ✅ auto   |
+| Security update — any non-major   | ✅ auto   |
+| Major — any ecosystem             | ❌ manual |
+
+The reusable workflow also applies `dependencies` plus either `automerge` or
+`needs-human-review` so Dependabot queues stay auditable at a glance.
+
+Required checks should target raw GitHub Actions check-run contexts, not the UI
+label. For example, require `build-test` or `test` from the GitHub Actions app,
+not a display label such as `CI / build-test (pull_request)`.
 
 **PR title enforcement rollout:**
 

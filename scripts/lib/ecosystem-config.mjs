@@ -337,6 +337,7 @@ on:
     branches: [main]
   push:
     branches: [main]
+  merge_group:
 
 jobs:
   test:
@@ -402,6 +403,7 @@ on:
     branches: [main]
   push:
     branches: [main]
+  merge_group:
   workflow_dispatch:
 
 ${defaultsBlock}jobs:
@@ -1036,6 +1038,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  merge_group:
   workflow_dispatch:
 
 jobs:
