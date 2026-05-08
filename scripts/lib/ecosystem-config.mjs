@@ -346,9 +346,9 @@ jobs:
       matrix:
         node-version: [${nodeVersions.map((version) => `"${version}"`).join(", ")}]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: \${{ matrix.node-version }}
           cache: "npm"
@@ -374,7 +374,7 @@ function normalizeNodeVersions(ciProfile) {
   if (ciProfile.nodeVersion) {
     return [String(ciProfile.nodeVersion)];
   }
-  return ["22"];
+  return ["24"];
 }
 
 function renderPythonCiWorkflow(server, ciProfile) {
@@ -415,7 +415,7 @@ ${defaultsBlock}jobs:
         python-version: ["${ciProfile.pythonVersions.join('", "')}"]
 
     steps:
-      - uses: actions/checkout@v4\${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag && format('\n        with:\n          ref: {0}', github.event.inputs.tag) || '' }}
+      - uses: actions/checkout@v6\${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag && format('\n        with:\n          ref: {0}', github.event.inputs.tag) || '' }}
 
       - name: Set up Python \${{ matrix.python-version }}
         uses: actions/setup-python@v5
@@ -479,7 +479,7 @@ jobs:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
@@ -496,11 +496,11 @@ jobs:
     name: Dependency Audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: "22"
+          node-version: "24"
           cache: "npm"
 
       - run: npm ci
@@ -549,7 +549,7 @@ jobs:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
@@ -566,7 +566,7 @@ jobs:
     name: Dependency Audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-python@v5
         with:
@@ -586,7 +586,7 @@ jobs:
     name: Bandit Security Scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-python@v5
         with:
@@ -745,11 +745,11 @@ function renderTypescriptReleaseWorkflow(server, releaseProfile) {
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: "22"
+          node-version: "24"
           cache: "npm"
 
       - run: npm ci
@@ -798,11 +798,11 @@ ${releaseConfig}
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: "22"
+          node-version: "24"
           registry-url: "https://registry.npmjs.org"
 
       # Use npm install for cross-version lockfile compatibility
@@ -821,11 +821,11 @@ ${releaseConfig}
       packages: write
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: "22"
+          node-version: "24"
           registry-url: "https://npm.pkg.github.com"
           scope: "@verygoodplugins"
 
@@ -872,7 +872,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-python@v5
         with:
@@ -887,7 +887,7 @@ jobs:
         run: python -m build
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dist
           path: ${artifactPath}
@@ -900,7 +900,7 @@ jobs:
       id-token: write
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist/
@@ -914,7 +914,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -983,7 +983,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: \${{ needs.release-please.outputs.sha }}
 
@@ -1046,7 +1046,7 @@ jobs:
     name: Version Consistency
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -1057,7 +1057,7 @@ jobs:
     name: Python Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
       - name: Install dependencies
         run: |
@@ -1077,7 +1077,7 @@ jobs:
     name: Go Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-go@v5
         with:
           go-version: "${goVersion}"
@@ -1091,7 +1091,7 @@ jobs:
     name: Go Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-go@v5
         with:
           go-version: "${goVersion}"
@@ -1104,7 +1104,7 @@ jobs:
     name: Python Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
       - name: Install dependencies
         run: |
@@ -1142,7 +1142,7 @@ jobs:
     name: CodeQL Analysis (Python)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
@@ -1159,7 +1159,7 @@ jobs:
     name: CodeQL Analysis (Go)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-go@v5
         with:
           go-version: "${goVersion}"
@@ -1176,7 +1176,7 @@ jobs:
     name: Python Dependency Audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -1196,7 +1196,7 @@ jobs:
     name: Bandit Security Scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -1210,7 +1210,7 @@ jobs:
     name: Go Vulnerability Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-go@v5
         with:
           go-version: "${goVersion}"
@@ -1248,7 +1248,7 @@ jobs:
     name: Validate Release Inputs
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: \${{ github.event.inputs.tag }}
       - uses: actions/setup-go@v5
@@ -1289,7 +1289,7 @@ jobs:
     needs: validate-release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: \${{ github.event.inputs.tag }}
       - uses: actions/setup-go@v5

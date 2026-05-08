@@ -79,7 +79,7 @@ server-name/
     "mcp-{name}": "dist/index.js"
   },
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=24.0.0"
   },
   "mcpName": "io.github.verygoodplugins/mcp-{name}",
   "scripts": {
@@ -985,7 +985,7 @@ server-name/
   "compatibility": {
     "claude_desktop": ">=1.0.0",
     "platforms": ["darwin", "win32", "linux"],
-    "runtimes": { "node": ">=22.0.0" }
+    "runtimes": { "node": ">=24.0.0" }
   }
 }
 ```
