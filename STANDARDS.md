@@ -487,7 +487,7 @@ Example:
    - Dependency vulnerability scanning
 
 5. **dependabot-auto-merge.yml** - Approves safe Dependabot PRs and enables GitHub auto-merge
-   - Runs on `pull_request_target` with a caller-side `github.actor == 'dependabot[bot]'` guard
+   - Runs on `pull_request_target` with a caller-side `github.event.pull_request.user.login == 'dependabot[bot]'` guard
    - Explicitly scopes permissions to `contents: write` and `pull-requests: write`
    - Uses CI + org rulesets as the safety gate
    - Thin stub that delegates all logic to the reusable workflow at [`verygoodplugins/.github`](https://github.com/verygoodplugins/.github/blob/main/.github/workflows/dependabot-auto-merge.yml)
