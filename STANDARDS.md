@@ -487,7 +487,8 @@ Example:
    - Dependency vulnerability scanning
 
 5. **dependabot-auto-merge.yml** - Approves safe Dependabot PRs and enables GitHub auto-merge
-   - Runs on `pull_request_target` for Dependabot PRs only
+   - Runs on `pull_request_target` with a caller-side `github.event.pull_request.user.login == 'dependabot[bot]'` guard
+   - Explicitly scopes permissions to `contents: write` and `pull-requests: write`
    - Uses CI + org rulesets as the safety gate
    - Thin stub that delegates all logic to the reusable workflow at [`verygoodplugins/.github`](https://github.com/verygoodplugins/.github/blob/main/.github/workflows/dependabot-auto-merge.yml)
    - Auto-merges non-major updates after required checks pass
@@ -641,7 +642,7 @@ Apply those per-repo settings with
 
 **Auto-merge policy:**
 
-The canonical logic lives in [`verygoodplugins/.github/.github/workflows/dependabot-auto-merge.yml`](https://github.com/verygoodplugins/.github/blob/main/.github/workflows/dependabot-auto-merge.yml). Each repo carries only a 6-line stub calling it. Edit the reusable workflow to change policy org-wide.
+The canonical logic lives in [`verygoodplugins/.github/.github/workflows/dependabot-auto-merge.yml`](https://github.com/verygoodplugins/.github/blob/main/.github/workflows/dependabot-auto-merge.yml). Each repo carries only a small guarded stub calling it. Edit the reusable workflow to change policy org-wide.
 
 | Update type                       | Policy    |
 | --------------------------------- | --------- |
