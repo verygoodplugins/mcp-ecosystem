@@ -423,10 +423,10 @@ build-extension:
   if: ${{ needs.release-please.outputs.release_created }}
   runs-on: ubuntu-latest
   steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-node@v4
+    - uses: actions/checkout@v6
+    - uses: actions/setup-node@v6
       with:
-        node-version: '22'
+        node-version: '24'
     - run: npm ci
     - run: npm run build:extension
     - name: Upload Extension to Release
@@ -466,7 +466,7 @@ Double-click the downloaded file to install. You'll be prompted for your API key
 ## Troubleshooting
 
 ### npm publish fails with 403 or 404
-- **npm 11.5.1+ required** - npm OIDC Trusted Publishing needs a recent npm. Use Node 22 and install `npm@11` in the publish job; do not switch workflows to Node 24 just to get the bundled npm.
+- **npm 11.5.1+ required** - npm OIDC Trusted Publishing needs a recent npm. Use Node 24 so publishing jobs get a current npm runtime by default.
 - Check Trusted Publishing configuration on npm
 - Verify workflow name matches exactly (case-sensitive)
 - Verify environment name matches (use `npm` environment)
