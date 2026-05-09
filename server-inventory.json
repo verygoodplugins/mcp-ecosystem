@@ -14,6 +14,11 @@
       "templateTier": "compatible",
       "propagate": true,
       "allowOverrides": ["eslintConfig", "vitestConfig"],
+      "docsDispatch": {
+        "repository": "verygoodplugins/automem-website",
+        "eventType": "docs-update",
+        "fileDocMapUrl": "https://raw.githubusercontent.com/verygoodplugins/automem-website/main/scripts/file-doc-map.json"
+      },
       "description": "Graph-vector memory for AI assistants",
       "github": "https://github.com/verygoodplugins/mcp-automem",
       "npm": "@verygoodplugins/mcp-automem",

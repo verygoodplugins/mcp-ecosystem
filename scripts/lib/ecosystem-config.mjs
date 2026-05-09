@@ -734,6 +734,7 @@ function renderTypescriptReleaseWorkflow(server, releaseProfile) {
       ? `          manifest-file: ".release-please-manifest.json"
           config-file: "release-please-config.json"`
       : "          release-type: node";
+  const docsDispatchJob = renderTypescriptDocsDispatchJob(server);
   const extensionJob =
     releaseProfile.supportsDesktopExtension || server.desktopExtension
       ? `
@@ -782,6 +783,7 @@ jobs:
     outputs:
       release_created: \${{ steps.release.outputs.release_created }}
       tag_name: \${{ steps.release.outputs.tag_name }}
+      sha: \${{ steps.release.outputs.sha }}
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
@@ -835,8 +837,139 @@ ${releaseConfig}
 
       - run: npm publish --access public
         env:
-          NODE_AUTH_TOKEN: \${{ secrets.GITHUB_TOKEN }}${extensionJob}
+          NODE_AUTH_TOKEN: \${{ secrets.GITHUB_TOKEN }}${extensionJob}${docsDispatchJob}
 `;
+}
+
+function renderTypescriptDocsDispatchJob(server) {
+  const docsDispatch = server.docsDispatch;
+  if (!docsDispatch) {
+    return "";
+  }
+  if (!docsDispatch.repository) {
+    throw new Error(`${server.name} docsDispatch.repository is required`);
+  }
+
+  const eventType = docsDispatch.eventType ?? "docs-update";
+  const sourceBranch = docsDispatch.sourceBranch ?? "main";
+  const fileDocMapUrl = docsDispatch.fileDocMapUrl ?? "";
+
+  return `
+
+  docs-dispatch:
+    needs: release-please
+    if: \${{ needs.release-please.outputs.release_created }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: \${{ needs.release-please.outputs.tag_name }}
+
+      - name: Get changed files since last release
+        id: changed
+        run: |
+          CURR_TAG="\${{ needs.release-please.outputs.tag_name }}"
+          PREV_TAG=$(git tag --sort=-version:refname | grep -v "^$CURR_TAG$" | head -1 || true)
+
+          if [ -z "$PREV_TAG" ]; then
+            echo "::warning::No previous tag found, diffing against first commit"
+            PREV_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+
+          echo "Diffing $PREV_TAG..$CURR_TAG"
+          FILES=$(git diff --name-only "$PREV_TAG" "$CURR_TAG" | jq -R -s -c 'split("\\n") | map(select(. != ""))')
+
+          {
+            echo "files=$FILES"
+            echo "compare_url=https://github.com/\${{ github.repository }}/compare/$PREV_TAG...$CURR_TAG"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Check file-doc mapping
+        id: check
+        env:
+          CHANGED_FILES: \${{ steps.changed.outputs.files }}
+          FILE_DOC_MAP_URL: ${JSON.stringify(fileDocMapUrl)}
+          GH_TOKEN: \${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+        run: |
+          if [ -z "$FILE_DOC_MAP_URL" ]; then
+            echo "::warning::No file-doc-map URL configured, dispatching anyway"
+            echo "affected=unknown" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          curl_args=(-sf --connect-timeout 10 --max-time 30 --retry 2 --retry-connrefused)
+          if [ -n "$GH_TOKEN" ]; then
+            curl_args+=(-H "Authorization: Bearer $GH_TOKEN")
+          fi
+
+          if ! MAP=$(curl "\${curl_args[@]}" "$FILE_DOC_MAP_URL"); then
+            echo "::warning::Failed to fetch file-doc-map.json, dispatching anyway"
+            echo "affected=unknown" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          AFFECTED=$(echo "$MAP" | jq -r --arg repo "\${{ github.event.repository.name }}" --argjson changed "$CHANGED_FILES" '
+            def matches_pattern($file; $pattern):
+              if ($pattern | endswith("/**")) then
+                ($file | startswith($pattern[0:-2]))
+              else
+                $file == $pattern
+              end;
+
+            .[$repo] // {} | to_entries | map(
+              select(.key as $pattern | $changed | any(. as $file | matches_pattern($file; $pattern)))
+            ) | map(.value) | flatten | unique | .[]
+          ')
+
+          if [ -z "$AFFECTED" ]; then
+            echo "No doc pages affected by this release"
+            echo "affected=none" >> "$GITHUB_OUTPUT"
+          else
+            AFFECTED_JSON=$(echo "$AFFECTED" | jq -R -s -c 'split("\\n") | map(select(. != ""))')
+            echo "Affected doc pages: $AFFECTED_JSON"
+            echo "affected=$AFFECTED_JSON" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Dispatch docs update
+        if: steps.check.outputs.affected != 'none'
+        env:
+          GH_TOKEN: \${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+          DOCS_REPOSITORY: ${docsDispatch.repository}
+          DOCS_EVENT_TYPE: ${eventType}
+          SOURCE_REPO: \${{ github.repository }}
+          SOURCE_SHA: \${{ needs.release-please.outputs.sha || needs.release-please.outputs.tag_name }}
+          SOURCE_BRANCH: ${sourceBranch}
+          TAG_NAME: \${{ needs.release-please.outputs.tag_name }}
+          CHANGED_FILES: \${{ steps.changed.outputs.files }}
+          AFFECTED_DOCS: \${{ steps.check.outputs.affected }}
+          COMPARE_URL: \${{ steps.changed.outputs.compare_url }}
+        run: |
+          payload=$(jq -n \\
+            --arg event_type "$DOCS_EVENT_TYPE" \\
+            --arg source_repo "$SOURCE_REPO" \\
+            --arg source_sha "$SOURCE_SHA" \\
+            --arg source_branch "$SOURCE_BRANCH" \\
+            --arg compare_url "$COMPARE_URL" \\
+            --arg reason "Release $TAG_NAME" \\
+            --arg changed_files "$CHANGED_FILES" \\
+            --arg affected_docs "$AFFECTED_DOCS" \\
+            '{
+              event_type: $event_type,
+              client_payload: {
+                source_repo: $source_repo,
+                source_sha: $source_sha,
+                source_branch: $source_branch,
+                changed_files: ($changed_files | fromjson),
+                affected_docs: (try ($affected_docs | fromjson) catch $affected_docs),
+                compare_url: $compare_url,
+                reason: $reason
+              }
+            }')
+
+          echo "$payload" | gh api "repos/$DOCS_REPOSITORY/dispatches" --input -`;
 }
 
 function renderPythonReleaseWorkflow(server, releaseProfile) {
