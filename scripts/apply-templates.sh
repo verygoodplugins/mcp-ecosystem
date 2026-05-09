@@ -140,7 +140,7 @@ if [[ "$SERVER_TYPE" == "typescript" ]]; then
             copy_file "$TEMPLATE_DIR/typescript/tsconfig.json" "$SERVER_PATH/tsconfig.json" "tsconfig.json"
         fi
     else
-        echo "⚠️  Skipping tsconfig.json (project-specific, not overwritten)"
+        echo "ℹ️  Skipping tsconfig.json (project-specific, not overwritten)"
     fi
     
     # .gitignore (only if missing)
@@ -149,7 +149,7 @@ if [[ "$SERVER_TYPE" == "typescript" ]]; then
             copy_file "$TEMPLATE_DIR/typescript/.gitignore" "$SERVER_PATH/.gitignore" ".gitignore"
         fi
     else
-        echo "⚠️  Skipping .gitignore (already exists)"
+        echo "ℹ️  Skipping .gitignore (already exists)"
     fi
 else
     # Python .gitignore (only if missing)
@@ -158,33 +158,16 @@ else
             copy_file "$TEMPLATE_DIR/python/.gitignore" "$SERVER_PATH/.gitignore" ".gitignore"
         fi
     else
-        echo "⚠️  Skipping .gitignore (already exists)"
+        echo "ℹ️  Skipping .gitignore (already exists)"
     fi
 fi
 
-echo ""
-echo "📝 Files that may need manual updates:"
-echo "---------------------------------------"
-
-if [[ "$SERVER_TYPE" == "typescript" ]]; then
-    echo "• package.json: Add 'mcpName' field"
-    echo "• package.json: Ensure 'publishConfig.access' is 'public'"
-    echo "• package.json: Ensure 'files' array is configured"
-    echo "• package.json: Ensure test script exists"
-    echo "• Create server.json for MCP Registry (use 2025-12-11 schema)"
+if command -v node >/dev/null 2>&1; then
+    node "$SCRIPT_DIR/lib/print-apply-templates-followups.mjs" "$SERVER_PATH" "$SERVER_TYPE"
 else
-    echo "• pyproject.toml: Add [tool.mcp] section with 'name'"
-    echo "• pyproject.toml: Add [tool.ruff] configuration"
-    echo "• pyproject.toml: Ensure pytest configuration exists"
-    echo "• Create server.json for MCP Registry (use 2025-12-11 schema)"
+    echo ""
+    echo "ℹ️  node not found; skipping manifest follow-up checks. Run ./scripts/audit-server.sh $SERVER_PATH"
 fi
 
-echo ""
-echo "🔗 Next steps:"
-echo "--------------"
-echo "1. Update package configuration with mcpName"
-echo "2. Create server.json for MCP Registry"
-echo "3. Configure Trusted Publishing on npm/PyPI"
-echo "4. Run: ./audit-server.sh $SERVER_PATH"
 echo ""
 echo "✅ Templates applied successfully!"

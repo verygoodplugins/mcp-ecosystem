@@ -91,7 +91,7 @@ See [STANDARDS.md](./STANDARDS.md) for complete coding standards.
 
 Key requirements:
 
-- **TypeScript:** Node.js ≥18, ES2022, strict mode, Vitest, release-please
+- **TypeScript:** Node.js >=24, ES2022, strict mode, Vitest, release-please
 - **Python:** Python ≥3.11, pyproject.toml, pytest, ruff
 - **All:** CI/CD, security scanning, MCP Registry, UTM tracking
 

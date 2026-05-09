@@ -72,7 +72,11 @@ test("renders monorepo python managed files from inventory-style config", () => 
   assert.match(files[".github/workflows/pr-title.yml"], /name: Lint PR Title/);
   assert.match(
     files[".github/workflows/dependabot-auto-merge.yml"],
-    /name: Dependabot auto-merge/,
+    /name: Dependabot Auto-Merge/,
+  );
+  assert.match(
+    files[".github/workflows/dependabot-auto-merge.yml"],
+    /uses: verygoodplugins\/\.github\/\.github\/workflows\/dependabot-auto-merge\.yml@main/,
   );
 });
 
@@ -94,9 +98,9 @@ test("renders TypeScript CI matrix and scoped npm Dependabot groups", () => {
   const ci = files[".github/workflows/ci.yml"];
   const dependabot = files[".github/dependabot.yml"];
 
-  assert.match(ci, /node-version: \["22", "24"\]/);
+  assert.match(ci, /node-version: \["24"\]/);
   assert.match(ci, /node-version: \$\{\{ matrix\.node-version \}\}/);
-  assert.doesNotMatch(ci, /node-version:\s*["']?(?:18|20)["']?/);
+  assert.doesNotMatch(ci, /node-version:\s*["']?(?:18|20|22)["']?/);
 
   assert.match(dependabot, /security-updates:[\s\S]*applies-to: security-updates/);
   assert.match(dependabot, /security-updates:[\s\S]*patterns:\n\s+- "\*"/);
@@ -127,6 +131,10 @@ test("renders GitHub Packages mirror publish job for TypeScript releases", () =>
   const releaseWorkflow = files[".github/workflows/release-please.yml"];
 
   assert.match(releaseWorkflow, /npm publish --provenance --access public/);
+  assert.match(releaseWorkflow, /actions\/checkout@v6/);
+  assert.match(releaseWorkflow, /actions\/setup-node@v6/);
+  assert.match(releaseWorkflow, /npm ci/);
+  assert.doesNotMatch(releaseWorkflow, /ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION/);
   assert.match(releaseWorkflow, /gh-packages-publish:/);
   assert.match(releaseWorkflow, /needs: \[release-please, npm-publish\]/);
   assert.match(releaseWorkflow, /packages: write/);
