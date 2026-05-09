@@ -872,7 +872,7 @@ function renderTypescriptDocsDispatchJob(server) {
         id: changed
         run: |
           CURR_TAG="\${{ needs.release-please.outputs.tag_name }}"
-          PREV_TAG=$(git tag --sort=-version:refname | grep -v "^$CURR_TAG$" | head -1 || true)
+          PREV_TAG=$(git tag --sort=-version:refname | grep -v -xF "$CURR_TAG" | head -1 || true)
 
           if [ -z "$PREV_TAG" ]; then
             echo "::warning::No previous tag found, diffing against first commit"

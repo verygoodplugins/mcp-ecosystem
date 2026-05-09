@@ -166,6 +166,7 @@ test("renders structured docs dispatch for TypeScript releases when configured",
   assert.match(releaseWorkflow, /DOCS_REPOSITORY: verygoodplugins\/automem-website/);
   assert.match(releaseWorkflow, /DOCS_EVENT_TYPE: docs-update/);
   assert.match(releaseWorkflow, /FILE_DOC_MAP_URL: "https:\/\/raw\.githubusercontent\.com\/verygoodplugins\/automem-website\/main\/scripts\/file-doc-map\.json"/);
+  assert.match(releaseWorkflow, /grep -v -xF "\$CURR_TAG"/);
   assert.match(releaseWorkflow, /repos\/\$DOCS_REPOSITORY\/dispatches" --input -/);
   assert.match(releaseWorkflow, /changed_files: \(\$changed_files \| fromjson\)/);
   assert.match(
