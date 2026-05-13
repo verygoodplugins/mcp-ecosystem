@@ -18,7 +18,7 @@ function makeTempDir() {
 test("typescript baseline sync adds missing managed dev dependencies", () => {
   const repoRoot = makeTempDir();
   const templatePackageJson = {
-    engines: { node: ">=22.0.0" },
+    engines: { node: ">=24.0.0" },
     dependencies: {
       "@modelcontextprotocol/sdk": "^1.29.0",
     },
@@ -66,7 +66,7 @@ test("typescript baseline sync adds missing managed dev dependencies", () => {
     fs.readFileSync(path.join(repoRoot, "package.json"), "utf8"),
   );
 
-  assert.equal(updated.engines.node, ">=22.0.0");
+  assert.equal(updated.engines.node, ">=24.0.0");
   assert.equal(updated.devDependencies["@eslint/js"], "^9.39.0");
   assert.equal(updated.devDependencies["typescript-eslint"], "^8.30.1");
   assert.equal(updated.dependencies.zod, "^4.0.0");
@@ -81,7 +81,7 @@ test("typescript baseline sync does not lower a stricter engines.node floor", ()
     JSON.stringify(
       {
         name: "@verygoodplugins/mcp-example",
-        engines: { node: ">=24.0.0" },
+        engines: { node: ">=25.0.0" },
       },
       null,
       2,
@@ -90,7 +90,7 @@ test("typescript baseline sync does not lower a stricter engines.node floor", ()
 
   const report = syncTypescriptBaseline({
     templatePackageJson: {
-      engines: { node: ">=22.0.0" },
+      engines: { node: ">=24.0.0" },
       dependencies: {},
       devDependencies: {},
     },
@@ -101,7 +101,7 @@ test("typescript baseline sync does not lower a stricter engines.node floor", ()
     fs.readFileSync(path.join(repoRoot, "package.json"), "utf8"),
   );
 
-  assert.equal(updated.engines.node, ">=24.0.0");
+  assert.equal(updated.engines.node, ">=25.0.0");
   assert.equal(report.changed, false);
 });
 

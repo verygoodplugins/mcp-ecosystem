@@ -740,12 +740,14 @@ function renderTypescriptReleaseWorkflow(server, releaseProfile) {
 
   build-extension:
     needs: release-please
-    if: \${{ needs.release-please.outputs.release_created }}
+    if: \${{ needs.release-please.outputs.release_created == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: \${{ needs.release-please.outputs.tag_name }}
 
       - uses: actions/setup-node@v6
         with:
@@ -773,9 +775,6 @@ permissions:
   contents: write
   pull-requests: write
 
-env:
-  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
-
 jobs:
   release-please:
     runs-on: ubuntu-latest
@@ -791,7 +790,7 @@ ${releaseConfig}
 
   npm-publish:
     needs: release-please
-    if: \${{ needs.release-please.outputs.release_created }}
+    if: \${{ needs.release-please.outputs.release_created == 'true' }}
     runs-on: ubuntu-latest
     environment: npm
     permissions:
@@ -799,22 +798,24 @@ ${releaseConfig}
       id-token: write
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: \${{ needs.release-please.outputs.tag_name }}
 
       - uses: actions/setup-node@v6
         with:
           node-version: "24"
           registry-url: "https://registry.npmjs.org"
+          cache: "npm"
 
-      # Use npm install for cross-version lockfile compatibility
       - run: npm install -g npm@11
-      - run: npm install
+      - run: npm ci
       - run: npm run build
       - run: npm test
       - run: npm publish --provenance --access public
 
   gh-packages-publish:
     needs: [release-please, npm-publish]
-    if: \${{ needs.release-please.outputs.release_created }}
+    if: \${{ needs.release-please.outputs.release_created == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -822,15 +823,18 @@ ${releaseConfig}
     continue-on-error: true
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: \${{ needs.release-please.outputs.tag_name }}
 
       - uses: actions/setup-node@v6
         with:
           node-version: "24"
           registry-url: "https://npm.pkg.github.com"
           scope: "@verygoodplugins"
+          cache: "npm"
 
       - run: npm install -g npm@11
-      - run: npm install
+      - run: npm ci
       - run: npm run build
 
       - run: npm publish --access public
@@ -917,7 +921,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
 `;

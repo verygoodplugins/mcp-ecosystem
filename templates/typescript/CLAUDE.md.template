@@ -66,7 +66,8 @@ mcp-{name}/
 
 This server follows [VGP MCP Standards](https://github.com/verygoodplugins/mcp-ecosystem/blob/main/STANDARDS.md):
 
-- MCP SDK ^1.25.1
+- Node.js >=24.0.0
+- MCP SDK ^1.27.1
 - ES2022 target, strict TypeScript
 - Vitest for testing (≥50% coverage)
 - ESLint 9 flat config + Prettier
