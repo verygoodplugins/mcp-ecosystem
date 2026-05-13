@@ -25,8 +25,19 @@ function checkServerJson() {
     issues.push("Create server.json for MCP Registry (use 2025-12-11 schema)");
     return;
   }
-  const raw = fs.readFileSync(sj, "utf8");
-  if (!raw.includes("2025-12-11")) {
+
+  let serverJson;
+  try {
+    serverJson = JSON.parse(fs.readFileSync(sj, "utf8"));
+  } catch {
+    issues.push("server.json: Invalid JSON");
+    return;
+  }
+
+  if (
+    typeof serverJson?.$schema !== "string" ||
+    !serverJson.$schema.includes("2025-12-11")
+  ) {
     issues.push("server.json: Use MCP Registry schema 2025-12-11");
   }
 }
