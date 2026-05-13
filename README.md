@@ -101,7 +101,7 @@ Key requirements:
 
 - Update templates and shared baselines here first.
 - Merge the source-of-truth change to `main`.
-- `server-inventory.json` now carries repo capabilities such as `packagePath`, `ciProfile`, `releaseProfile`, `securityProfile`, `templateTier`, and `propagate`.
+- `server-inventory.json` now carries repo capabilities such as `packagePath`, `ciProfile`, `releaseProfile`, `securityProfile`, `templateTier`, `docsDispatch`, and `propagate`.
 - `config/ecosystem-policy.json` is the machine-readable source for shared CI/release/security policy and repo defaults.
 - `.github/workflows/propagate-templates.yml` opens or updates `chore/template-sync` PRs in downstream repos from `server-inventory.json`.
 - `scripts/render-managed-files.mjs` generates profile-aware managed workflows/config instead of force-copying one workflow shape into every repo.

@@ -147,6 +147,43 @@ test("renders GitHub Packages mirror publish job for TypeScript releases", () =>
   );
 });
 
+test("renders structured docs dispatch for TypeScript releases when configured", () => {
+  const server = {
+    name: "mcp-automem",
+    type: "typescript",
+    packageLayout: "root",
+    packagePath: ".",
+    ciProfile: "ts-vitest",
+    releaseProfile: "release-please-manifest",
+    securityProfile: "strict",
+    templateTier: "compatible",
+    propagate: true,
+    docsDispatch: {
+      repository: "verygoodplugins/automem-website",
+      eventType: "docs-update",
+      fileDocMapUrl:
+        "https://raw.githubusercontent.com/verygoodplugins/automem-website/main/scripts/file-doc-map.json",
+    },
+  };
+
+  const profiles = resolveServerProfiles(server);
+  const files = renderManagedFiles(server, profiles);
+  const releaseWorkflow = files[".github/workflows/release-please.yml"];
+
+  assert.match(releaseWorkflow, /docs-dispatch:/);
+  assert.match(releaseWorkflow, /DOCS_REPOSITORY: verygoodplugins\/automem-website/);
+  assert.match(releaseWorkflow, /DOCS_EVENT_TYPE: docs-update/);
+  assert.match(releaseWorkflow, /FILE_DOC_MAP_URL: "https:\/\/raw\.githubusercontent\.com\/verygoodplugins\/automem-website\/main\/scripts\/file-doc-map\.json"/);
+  assert.match(releaseWorkflow, /grep -v -xF "\$CURR_TAG"/);
+  assert.match(releaseWorkflow, /repos\/\$DOCS_REPOSITORY\/dispatches" --input -/);
+  assert.match(releaseWorkflow, /changed_files: \(\$changed_files \| fromjson\)/);
+  assert.match(
+    releaseWorkflow,
+    /affected_docs: \(try \(\$affected_docs \| fromjson\) catch \$affected_docs\)/,
+  );
+  assert.match(releaseWorkflow, /compare_url: \$compare_url/);
+});
+
 test("renders GitHub hygiene files when hygieneTemplates feature is enabled", () => {
   const server = {
     name: "mcp-evernote",
