@@ -128,6 +128,7 @@ if [[ "$SERVER_TYPE" == "typescript" ]]; then
       "release-type": "node",
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": true,
+      "include-component-in-tag": false,
       "extra-files": [
         {
           "type": "json",
