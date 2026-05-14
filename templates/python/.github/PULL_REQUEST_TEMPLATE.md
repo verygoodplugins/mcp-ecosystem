@@ -1,6 +1,6 @@
 <!--
-  Title format: <type>(<scope>): <summary>
-  Examples: feat(server): add list_users tool · fix(client): retry on 429
+  Title format: <type>[(<scope>)]: <summary>  — scope is optional.
+  Examples: fix: retry on 429 · feat(server): add list_users tool
   See https://www.conventionalcommits.org
 -->
 
