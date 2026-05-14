@@ -784,7 +784,7 @@ jobs:
       tag_name: \${{ steps.release.outputs.tag_name }}
       sha: \${{ steps.release.outputs.sha }}
     steps:
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@v5
         id: release
         with:
 ${releaseConfig}
@@ -1105,7 +1105,7 @@ jobs:
       tag_name: \${{ steps.release.outputs.tag_name }}
       sha: \${{ steps.release.outputs.sha }}
     steps:
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@v5
         id: release
         with:
           token: \${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
