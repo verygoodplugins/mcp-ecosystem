@@ -132,7 +132,7 @@ export function renderManagedFiles(
     files["vitest.config.ts"] = renderVitestConfig(normalized, profiles);
   }
   if (shouldManageFeature("hygieneTemplates", normalized, profiles)) {
-    Object.assign(files, renderHygieneFiles(normalized.type));
+    Object.assign(files, renderHygieneFiles(normalized));
   }
 
   return files;
@@ -293,16 +293,21 @@ const HYGIENE_FILES = [
   ".github/ISSUE_TEMPLATE/feature_request.yml",
 ];
 
-function renderHygieneFiles(serverType) {
+function renderHygieneFiles(server) {
+  const githubUrl = server.github ?? `https://github.com/verygoodplugins/${server.name}`;
+  const repoSlug = githubUrl.replace(/^https?:\/\/github\.com\//, "").replace(/\/$/, "");
   const files = {};
   for (const relativePath of HYGIENE_FILES) {
     const templatePath = path.join(
       repoRoot,
       "templates",
-      serverType,
+      server.type,
       relativePath,
     );
-    files[relativePath] = fs.readFileSync(templatePath, "utf8");
+    const raw = fs.readFileSync(templatePath, "utf8");
+    files[relativePath] = raw
+      .replace(/\{repo_slug\}/g, repoSlug)
+      .replace(/\{name\}/g, server.name);
   }
   return files;
 }
@@ -735,6 +740,7 @@ function renderTypescriptReleaseWorkflow(server, releaseProfile) {
           config-file: "release-please-config.json"`
       : "          release-type: node";
   const docsDispatchJob = renderTypescriptDocsDispatchJob(server);
+  const mcpRegistryJob = renderTypescriptMcpRegistryPublishJob(server);
   const extensionJob =
     releaseProfile.supportsDesktopExtension || server.desktopExtension
       ? `
@@ -841,8 +847,40 @@ ${releaseConfig}
 
       - run: npm publish --access public
         env:
-          NODE_AUTH_TOKEN: \${{ secrets.GITHUB_TOKEN }}${extensionJob}${docsDispatchJob}
+          NODE_AUTH_TOKEN: \${{ secrets.GITHUB_TOKEN }}${mcpRegistryJob}${extensionJob}${docsDispatchJob}
 `;
+}
+
+function renderTypescriptMcpRegistryPublishJob(server) {
+  if (!server.mcpRegistry) {
+    return "";
+  }
+
+  return `
+
+  mcp-registry-publish:
+    needs: [release-please, npm-publish]
+    if: \${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: \${{ needs.release-please.outputs.tag_name }}
+
+      - name: Install mcp-publisher CLI
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+          sudo mv mcp-publisher /usr/local/bin/
+
+      - name: Publish to MCP Registry
+        run: |
+          mcp-publisher login github-oidc
+          mcp-publisher publish
+        env:
+          MCP_REGISTRY_URL: https://registry.modelcontextprotocol.io`;
 }
 
 function renderTypescriptDocsDispatchJob(server) {

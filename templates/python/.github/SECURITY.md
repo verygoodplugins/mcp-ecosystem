@@ -4,7 +4,7 @@
 
 If you discover a security vulnerability, please **do not** open a public issue.
 
-Instead, report it privately via [GitHub Security Advisories](../../security/advisories/new). We aim to respond within 3 business days.
+Instead, report it privately via [GitHub Security Advisories](https://github.com/{repo_slug}/security/advisories/new). We aim to respond within 3 business days.
 
 For urgent issues you may also email [support@verygoodplugins.com](mailto:support@verygoodplugins.com).
 

@@ -12,4 +12,5 @@ jobs:
   auto-merge:
     if: github.event.pull_request.user.login == 'dependabot[bot]'
     uses: verygoodplugins/.github/.github/workflows/dependabot-auto-merge.yml@main
-    secrets: inherit
+    secrets:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
