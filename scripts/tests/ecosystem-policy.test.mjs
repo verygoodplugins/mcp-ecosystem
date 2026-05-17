@@ -78,6 +78,22 @@ test("renders monorepo python managed files from inventory-style config", () => 
     files[".github/workflows/dependabot-auto-merge.yml"],
     /uses: verygoodplugins\/\.github\/\.github\/workflows\/dependabot-auto-merge\.yml@main/,
   );
+  assert.match(
+    files[".github/workflows/dependabot-auto-merge.yml"],
+    /workflow_run:\n\s+workflows: \["CI"\]\n\s+types: \[completed\]/,
+  );
+  assert.match(
+    files[".github/workflows/dependabot-auto-merge.yml"],
+    /issues: write/,
+  );
+  assert.match(
+    files[".github/workflows/dependabot-auto-merge.yml"],
+    /github\.event_name == 'workflow_run'/,
+  );
+  assert.match(
+    files[".github/workflows/dependabot-auto-merge.yml"],
+    /github\.event\.workflow_run\.event == 'pull_request_target'/,
+  );
 });
 
 test("renders TypeScript CI matrix and scoped npm Dependabot groups", () => {
