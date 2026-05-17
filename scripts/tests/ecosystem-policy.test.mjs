@@ -90,6 +90,10 @@ test("renders monorepo python managed files from inventory-style config", () => 
     files[".github/workflows/dependabot-auto-merge.yml"],
     /github\.event_name == 'workflow_run'/,
   );
+  assert.match(
+    files[".github/workflows/dependabot-auto-merge.yml"],
+    /github\.event\.workflow_run\.event == 'pull_request_target'/,
+  );
 });
 
 test("renders TypeScript CI matrix and scoped npm Dependabot groups", () => {
