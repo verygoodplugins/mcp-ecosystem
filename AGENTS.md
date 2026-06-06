@@ -1,16 +1,17 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to coding agents (Claude Code, Cursor, Codex, and others) when working with code in this repository. `CLAUDE.md` imports it verbatim via `@AGENTS.md`.
 
 ## Repository Purpose
 
 This is the **mcp-ecosystem** repository - shared infrastructure, templates, and standards for Very Good Plugins MCP servers. It provides:
 
 - Complete project scaffolding for TypeScript and Python MCP servers
-- GitHub Actions workflow templates
-- Audit and template-application scripts
-- Publishing checklists for npm, PyPI, and MCP Registry
+- GitHub Actions workflow templates (force-copied baselines and profile-aware managed files)
+- Audit, scaffolding, and template-propagation scripts
+- Publishing checklists for npm, PyPI, and the MCP Registry
 - Coding standards documentation
+- A machine-readable policy (`config/ecosystem-policy.json`) and inventory (`server-inventory.json`)
 
 This repository does NOT contain MCP server implementations. Individual servers live in separate repos (mcp-automem, mcp-freescout, etc.).
 
@@ -28,7 +29,7 @@ This repository does NOT contain MCP server implementations. Individual servers 
 # Audit an MCP server against VGP standards
 ./scripts/audit-server.sh ../mcp-freescout
 
-# Apply workflow templates to an existing server
+# Apply (force-copy) baseline templates to an existing server
 ./scripts/apply-templates.sh typescript ../mcp-freescout
 ./scripts/apply-templates.sh python ../mcp-ical --force
 
@@ -38,40 +39,92 @@ This repository does NOT contain MCP server implementations. Individual servers 
 
 # Update README links with UTM tracking
 ./scripts/update-utm-links.sh ../mcp-freescout
+
+# Apply repo-level GitHub defaults (e.g. allow_auto_merge)
+./scripts/configure-github-defaults.sh ../mcp-freescout
+
+# Preview/propagate template-sync PRs to downstream repos (requires gh + token)
+./scripts/propagate-templates.sh --server mcp-pirsch --dry-run
+
+# Generate profile-aware managed workflows/config into a downstream repo
+./scripts/render-managed-files.mjs whatsapp-mcp ../whatsapp-mcp
+
+# Update managed dependency baselines from parsed JSON/TOML
+./scripts/sync-template-baseline.mjs whatsapp-mcp ../whatsapp-mcp
+
+# Block bad syncs before opening a PR
+./scripts/validate-sync.mjs whatsapp-mcp ../whatsapp-mcp
+
+# Describe a server's resolved profiles from the inventory
+./scripts/describe-server.mjs mcp-pirsch
 ```
+
+## Testing
+
+This repo's own test suite uses Node's built-in test runner (no root `package.json`):
+
+```bash
+node --test scripts/tests/*.mjs
+```
+
+Tests live in `scripts/tests/` and cover the inventory/policy logic, the
+template-baseline sync, sync validation, and the apply-templates follow-ups.
 
 ## Architecture
 
 ```
 mcp-ecosystem/
+├── README.md                       # Public overview + server inventory table
+├── STANDARDS.md                    # TypeScript/Python coding standards
+├── PUBLISHING.md                   # npm/PyPI/MCP Registry publishing checklist
+├── server-inventory.json           # Machine-readable list of all VGP MCP servers + capabilities
+├── config/
+│   └── ecosystem-policy.json       # Machine-readable CI/release/security policy + repo defaults
+├── docs/
+│   └── SELF_HOSTING.md
 ├── templates/
 │   ├── typescript/
-│   │   ├── .github/                # CI, release-please, security workflows
+│   │   ├── .github/                # CI, release-please, security, dependabot, PR/issue templates
 │   │   ├── src/index.ts.template   # Server skeleton
+│   │   ├── tests/index.test.ts.template
 │   │   ├── package.json.template   # Full package.json
+│   │   ├── server.json.template    # MCP Registry manifest
+│   │   ├── manifest.json.template  # Desktop extension manifest
+│   │   ├── README.md.template
+│   │   ├── CLAUDE.md.template
+│   │   ├── LICENSE.template
 │   │   ├── tsconfig.json           # Standard config
 │   │   ├── eslint.config.mjs       # ESLint 9 flat config
 │   │   ├── .prettierrc             # Prettier config
 │   │   └── vitest.config.ts        # Test config
 │   └── python/
-│       ├── .github/                # CI, release, security workflows
-│       ├── src/mcp_name/           # Package skeleton
+│       ├── .github/                # CI, release, security workflows + templates
+│       ├── src/mcp_name/           # Package skeleton (__init__.py, server.py)
+│       ├── tests/                  # Test skeleton
 │       ├── pyproject.toml.template # Full config
-│       └── tests/                  # Test skeleton
-├── scripts/
-│   ├── create-server.sh            # Scaffold new server from templates
-│   ├── audit-server.sh             # Validate against standards
-│   ├── apply-templates.sh          # Update existing server workflows
-│   ├── sync-inventory.sh           # Auto-update server inventory
-│   └── update-utm-links.sh         # Add UTM tracking to links
-├── server-inventory.json           # Machine-readable list of all VGP MCP servers
-├── STANDARDS.md                    # TypeScript/Python coding standards
-└── PUBLISHING.md                   # npm/PyPI/MCP Registry publishing checklist
+│       ├── server.json.template
+│       ├── README.md.template
+│       ├── CLAUDE.md.template
+│       └── LICENSE.template
+└── scripts/
+    ├── create-server.sh            # Scaffold new server from templates
+    ├── audit-server.sh             # Validate against standards
+    ├── apply-templates.sh          # Force-copy baseline workflows/config into a server
+    ├── configure-github-defaults.sh # Apply repo-level GitHub defaults
+    ├── propagate-templates.sh      # Open/update template-sync PRs in downstream repos
+    ├── sync-inventory.sh           # Auto-update server inventory
+    ├── update-utm-links.sh         # Add UTM tracking to README links
+    ├── describe-server.mjs         # Print a server's resolved profiles
+    ├── render-managed-files.mjs    # Generate profile-aware managed workflows/config
+    ├── sync-template-baseline.mjs  # Update managed dependency baselines
+    ├── validate-sync.mjs           # Preflight generated diffs before PRs
+    ├── lib/                        # Shared modules (ecosystem-config.mjs, validate-sync.mjs, ...)
+    └── tests/                      # node --test suite for the scripts above
 ```
 
 ## Creating a New MCP Server
 
-The fastest way to create a new server:
+The fastest way to create a new server (see `scripts/create-server.sh:3` for usage):
 
 ```bash
 ./scripts/create-server.sh typescript myservice "Brief description of what it does"
@@ -81,8 +134,8 @@ This will:
 
 1. Create `../mcp-myservice/` with full project structure
 2. Substitute all placeholders (`{name}`, `{description}`, etc.)
-3. Initialize git repository
-4. Install npm dependencies
+3. Initialize a git repository (`git init`)
+4. Install npm dependencies (TypeScript servers)
 
 Then:
 
@@ -96,12 +149,12 @@ Then:
 
 **TypeScript servers:**
 
-- Node.js ≥18, ES2022, strict mode
-- MCP SDK ^1.25.1
+- Node.js ≥22.0.0 (template `engines` pin `>=24.0.0`), ES2022, strict mode
+- MCP SDK `@modelcontextprotocol/sdk ^1.25.1`
 - Package naming: `@verygoodplugins/mcp-{name}`
 - MCP Registry name: `io.github.verygoodplugins/mcp-{name}`
 - Required: `mcpName` field in package.json
-- Testing: Vitest, ≥50% coverage
+- Testing: Vitest, ≥50% coverage (target ≥80%)
 - Release automation: release-please with OIDC Trusted Publishing
 
 **Python servers:**
@@ -115,7 +168,7 @@ Then:
 
 - README.md (with Support section + orange heart 🧡 footer)
 - LICENSE, CHANGELOG.md, CLAUDE.md
-- server.json (MCP Registry manifest, 2025-12-11 schema)
+- server.json (MCP Registry manifest)
 - .github/workflows/ci.yml, security.yml, release\*.yml
 - .github/dependabot.yml
 
@@ -136,7 +189,10 @@ Built with 🧡 by [Very Good Plugins](https://verygoodplugins.com/?utm_source=g
 
 ## Server Inventory
 
-The `server-inventory.json` tracks all VGP MCP servers with their publication status, CI/CD state, and test coverage.
+`server-inventory.json` tracks all VGP MCP servers with their publication
+status, repo capabilities (`packagePath`, `ciProfile`, `releaseProfile`,
+`securityProfile`, `templateTier`, `docsDispatch`, `propagate`), and the
+profiles consumed by the managed-file generators.
 
 ```bash
 # Auto-update from filesystem
@@ -145,6 +201,27 @@ The `server-inventory.json` tracks all VGP MCP servers with their publication st
 # Preview changes without writing
 ./scripts/sync-inventory.sh --dry-run
 ```
+
+## Source Of Truth
+
+`mcp-ecosystem` is the source of truth for shared MCP server workflows,
+config, and baseline dependency versions:
+
+- Update templates and shared baselines here first, then merge to `main`.
+- `config/ecosystem-policy.json` is the machine-readable source for shared
+  CI/release/security policy and repo defaults.
+- `.github/workflows/propagate-templates.yml` opens/updates `chore/template-sync`
+  PRs in downstream repos from `server-inventory.json`. It requires an
+  org/repo secret named `VGP_TEMPLATE_SYNC_TOKEN`.
+- `scripts/render-managed-files.mjs` generates profile-aware managed
+  workflows/config instead of force-copying one shape into every repo.
+- `scripts/sync-template-baseline.mjs` updates managed dependency baselines
+  and reports when lockfiles need regeneration.
+- `scripts/validate-sync.mjs` blocks PR creation when the generated diff is
+  incompatible with the repo profile.
+- Org rulesets are the canonical branch-protection layer; repo-level GitHub
+  booleans like `allow_auto_merge` are applied with
+  `scripts/configure-github-defaults.sh`.
 
 ## Publishing Workflow
 
@@ -155,7 +232,7 @@ The `server-inventory.json` tracks all VGP MCP servers with their publication st
 3. Update `server.json` with tools list
 4. Publish to npm: `npm publish`
 5. Configure Trusted Publishing on npm
-6. Submit to MCP Registry: `~/mcp-registry/bin/mcp-publisher publish server.json`
+6. Submit to MCP Registry (see PUBLISHING.md)
 
 **Existing server:**
 
@@ -163,6 +240,8 @@ The `server-inventory.json` tracks all VGP MCP servers with their publication st
 2. Audit: `./scripts/audit-server.sh ../mcp-{name}`
 3. Fix any errors/warnings
 4. Update `server-inventory.json`
+
+See [PUBLISHING.md](./PUBLISHING.md) for the complete checklist.
 
 ## Commit Message Format
 
