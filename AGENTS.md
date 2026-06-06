@@ -150,7 +150,7 @@ Then:
 **TypeScript servers:**
 
 - Node.js ≥22.0.0 (template `engines` pin `>=24.0.0`), ES2022, strict mode
-- MCP SDK `@modelcontextprotocol/sdk ^1.25.1`
+- MCP SDK `@modelcontextprotocol/sdk` ^1.25.1 (template pins `^1.27.1`)
 - Package naming: `@verygoodplugins/mcp-{name}`
 - MCP Registry name: `io.github.verygoodplugins/mcp-{name}`
 - Required: `mcpName` field in package.json
