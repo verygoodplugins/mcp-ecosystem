@@ -49,6 +49,11 @@ export function validateRepositorySync({
           });
         }
       }
+      validateTypescriptPackageSafety({
+        packageRoot,
+        packageJson,
+        issues,
+      });
     }
   } else {
     for (const requiredFile of profiles.ci.requiredFiles ?? []) {
@@ -72,6 +77,14 @@ export function validateRepositorySync({
         message: `Missing required release file: ${requiredFile}`,
       });
     }
+  }
+
+  if (normalized.type === "typescript" && profiles.release.mode === "manifest") {
+    validateTypescriptReleaseMetadata({
+      repoRoot,
+      packageJson,
+      issues,
+    });
   }
 
   if (syncReport.lockfileRefreshRequired) {
@@ -180,6 +193,153 @@ export function validateRepositorySync({
     issues,
     packageRoot,
   };
+}
+
+function validateTypescriptPackageSafety({ packageRoot, packageJson, issues }) {
+  const allowedPackageFiles = new Set([
+    "dist",
+    "dist/",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+  ]);
+  const packageFiles = packageJson.files;
+  if (!Array.isArray(packageFiles) || packageFiles.length === 0) {
+    issues.push({
+      code: "missing-package-allowlist",
+      severity: "error",
+      message: "package.json must declare a non-empty files allowlist.",
+    });
+  } else {
+    for (const entry of packageFiles) {
+      if (!allowedPackageFiles.has(entry)) {
+        issues.push({
+          code: "unapproved-package-file",
+          severity: "error",
+          message: `package.json files allowlist contains an unapproved entry: ${entry}`,
+        });
+      }
+    }
+    if (!packageFiles.some((entry) => entry === "dist" || entry === "dist/")) {
+      issues.push({
+        code: "missing-dist-package-content",
+        severity: "error",
+        message: "package.json files allowlist must include dist/.",
+      });
+    }
+  }
+
+  const bins = normalizeBins(packageJson);
+  if (Object.keys(bins).length === 0) {
+    issues.push({
+      code: "missing-package-bin",
+      severity: "error",
+      message: "package.json must expose an executable bin entry.",
+    });
+  }
+
+  for (const [name, target] of Object.entries(bins)) {
+    if (!target.startsWith("dist/") || target.includes("..")) {
+      issues.push({
+        code: "unsafe-package-bin-target",
+        severity: "error",
+        message: `Package bin ${name} must target a file under dist/: ${target}`,
+      });
+      continue;
+    }
+
+    const targetPath = path.join(packageRoot, target);
+    if (!fs.existsSync(targetPath)) {
+      continue;
+    }
+    const stat = fs.statSync(targetPath);
+    if ((stat.mode & 0o111) === 0) {
+      issues.push({
+        code: "non-executable-package-bin",
+        severity: "error",
+        message: `Package bin ${name} is not executable: ${target}`,
+      });
+    }
+  }
+}
+
+function normalizeBins(packageJson) {
+  if (typeof packageJson.bin === "string") {
+    const packageName = String(packageJson.name ?? "").split("/").at(-1);
+    return packageName ? { [packageName]: packageJson.bin } : {};
+  }
+  if (!packageJson.bin || typeof packageJson.bin !== "object") {
+    return {};
+  }
+  return Object.fromEntries(
+    Object.entries(packageJson.bin).filter(
+      ([, target]) => typeof target === "string",
+    ),
+  );
+}
+
+function validateTypescriptReleaseMetadata({ repoRoot, packageJson, issues }) {
+  const configPath = path.join(repoRoot, "release-please-config.json");
+  const manifestPath = path.join(repoRoot, ".release-please-manifest.json");
+  const packageVersion = packageJson?.version;
+
+  const manifest = parseJsonFile(manifestPath, "release manifest", issues);
+  if (manifest && packageVersion && manifest["."] !== packageVersion) {
+    issues.push({
+      code: "release-manifest-version-drift",
+      severity: "error",
+      message: `.release-please-manifest.json version must match package.json: ${packageVersion}`,
+    });
+  }
+
+  const config = parseJsonFile(configPath, "release config", issues);
+  if (config && config.packages?.["."]?.["release-type"] !== "node") {
+    issues.push({
+      code: "invalid-release-manifest-config",
+      severity: "error",
+      message: "release-please-config.json must configure the root Node package.",
+    });
+  }
+
+  const serverJson = parseJsonFile(
+    path.join(repoRoot, "server.json"),
+    "server manifest",
+    issues,
+    { optional: true },
+  );
+  if (serverJson && packageVersion) {
+    const registryVersion = serverJson.packages?.[0]?.version;
+    if (serverJson.version !== packageVersion || registryVersion !== packageVersion) {
+      issues.push({
+        code: "registry-version-drift",
+        severity: "error",
+        message: "server.json versions must match package.json for Release Please sync.",
+      });
+    }
+  }
+}
+
+function parseJsonFile(filePath, label, issues, { optional = false } = {}) {
+  if (!fs.existsSync(filePath)) {
+    if (!optional) {
+      issues.push({
+        code: "missing-release-metadata",
+        severity: "error",
+        message: `Missing ${label}: ${path.basename(filePath)}`,
+      });
+    }
+    return null;
+  }
+  try {
+    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+  } catch {
+    issues.push({
+      code: "invalid-release-metadata",
+      severity: "error",
+      message: `Invalid JSON in ${label}: ${path.basename(filePath)}`,
+    });
+    return null;
+  }
 }
 
 function resolvePackageRoot(repoRoot, server) {

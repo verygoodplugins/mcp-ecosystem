@@ -47,6 +47,41 @@ export function syncTypescriptBaseline({ templatePackageJson, targetPath }) {
   };
 }
 
+export function syncReleasePleaseManifest({ targetRoot, packageVersion }) {
+  const manifestPath = path.join(targetRoot, ".release-please-manifest.json");
+  if (!fs.existsSync(manifestPath)) {
+    return {
+      changed: false,
+      changes: [],
+      issues: [
+        {
+          code: "missing-release-manifest",
+          severity: "error",
+          message: "Manifest release profile requires .release-please-manifest.json",
+        },
+      ],
+    };
+  }
+
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  if (manifest["."] === packageVersion) {
+    return { changed: false, changes: [], issues: [] };
+  }
+
+  manifest["."] = packageVersion;
+  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  return {
+    changed: true,
+    changes: [
+      {
+        field: ".release-please-manifest.json[\".\"]",
+        value: packageVersion,
+      },
+    ],
+    issues: [],
+  };
+}
+
 export function syncPythonBaseline({ templateProject, targetPath }) {
   const originalText = fs.readFileSync(targetPath, "utf8");
   const parsed = parseTomlFile(targetPath);

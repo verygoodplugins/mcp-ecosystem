@@ -7,6 +7,7 @@ import path from "node:path";
 import {
   attemptLockfileRefresh,
   parseTomlText,
+  syncReleasePleaseManifest,
   syncPythonBaseline,
   syncTypescriptBaseline,
 } from "../lib/sync-template-baseline-core.mjs";
@@ -214,6 +215,20 @@ test("lockfile refresh clears pending refresh requirement after successful comma
 
   assert.equal(report.lockfileRefreshRequired, false);
   assert.equal(report.issues.length, 0);
+});
+
+test("release manifest sync follows the package version", () => {
+  const repoRoot = makeTempDir();
+  const manifestPath = path.join(repoRoot, ".release-please-manifest.json");
+  fs.writeFileSync(manifestPath, '{".": "1.0.0"}\n');
+
+  const report = syncReleasePleaseManifest({
+    targetRoot: repoRoot,
+    packageVersion: "1.2.0",
+  });
+
+  assert.equal(report.changed, true);
+  assert.equal(JSON.parse(fs.readFileSync(manifestPath, "utf8"))["."], "1.2.0");
 });
 
 test("template toml with placeholders can still be parsed", () => {

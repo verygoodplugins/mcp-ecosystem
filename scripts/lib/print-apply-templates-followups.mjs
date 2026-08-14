@@ -67,6 +67,7 @@ if (type === "typescript") {
       if (!pkg.scripts?.test) {
         issues.push("package.json: Ensure test script exists");
       }
+      checkReleasePleaseMetadata(pkg);
     }
   }
   checkServerJson();
@@ -90,6 +91,28 @@ if (type === "typescript") {
 } else {
   console.error(`Unknown type: ${type}`);
   process.exit(1);
+}
+
+function checkReleasePleaseMetadata(pkg) {
+  const configPath = path.join(root, "release-please-config.json");
+  const manifestPath = path.join(root, ".release-please-manifest.json");
+
+  if (!fs.existsSync(configPath)) {
+    issues.push("Create release-please-config.json for manifest releases");
+  }
+  if (!fs.existsSync(manifestPath)) {
+    issues.push("Create .release-please-manifest.json for manifest releases");
+    return;
+  }
+
+  try {
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    if (pkg.version && manifest["."] !== pkg.version) {
+      issues.push(".release-please-manifest.json: Sync root version with package.json");
+    }
+  } catch {
+    issues.push(".release-please-manifest.json: Invalid JSON");
+  }
 }
 
 if (issues.length > 0) {

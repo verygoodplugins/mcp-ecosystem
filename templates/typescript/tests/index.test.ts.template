@@ -9,22 +9,27 @@ function sleep(ms: number): Promise<void> {
 async function terminate(child: ReturnType<typeof spawn>): Promise<void> {
   if (child.exitCode !== null) return;
 
-  child.kill();
-  await Promise.race([
-    new Promise<void>((resolveExit) => child.once('exit', () => resolveExit())),
-    sleep(750),
-  ]);
+  const waitForExit = () =>
+    Promise.race([
+      new Promise<void>((resolveExit) => child.once('exit', resolveExit)),
+      sleep(750),
+    ]);
 
-  if (child.exitCode === null) {
-    child.kill('SIGKILL');
-    await new Promise<void>((resolveExit) => child.once('exit', () => resolveExit()));
-  }
+  child.kill('SIGTERM');
+  await waitForExit();
+  if (child.exitCode === null) child.kill('SIGKILL');
+  await waitForExit();
+
+  child.stdin?.destroy();
+  child.stdout?.destroy();
+  child.stderr?.destroy();
+  child.unref();
 }
 
 describe('mcp-{name}', () => {
   it('does not write to stdout on startup', async () => {
     const entry = resolve(process.cwd(), 'src/index.ts');
-    const child = spawn(process.execPath, ['--loader', 'tsx', entry], {
+    const child = spawn(process.execPath, ['--import', 'tsx', entry], {
       env: { ...process.env, API_KEY: 'test-key' },
       stdio: ['pipe', 'pipe', 'pipe'],
     });
@@ -43,18 +48,9 @@ describe('mcp-{name}', () => {
     }
   });
 
-  describe('smoke tests', () => {
-    it('should have tests', () => {
-      // TODO: Add actual tests
-      expect(true).toBe(true);
-    });
-  });
-
   describe('example_tool', () => {
-    it('should process a query', async () => {
-      // TODO: Test your tool implementation
-      const query = 'test query';
-      expect(query).toBeDefined();
+    it('documents the initial tool contract', () => {
+      expect('example_tool').toMatch(/_tool$/);
     });
   });
 });

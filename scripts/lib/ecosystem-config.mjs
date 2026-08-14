@@ -126,7 +126,7 @@ export function renderManagedFiles(
   }
   if (
     normalized.type === "typescript" &&
-    profiles.ci.id === "ts-vitest" &&
+    profiles.ci.managedFeatures?.includes("vitestConfig") &&
     shouldManageFeature("vitestConfig", normalized, profiles)
   ) {
     files["vitest.config.ts"] = renderVitestConfig(normalized, profiles);
@@ -139,7 +139,11 @@ export function renderManagedFiles(
 }
 
 export function writeManagedFiles({ repoRoot: targetRoot, server, profiles }) {
-  const files = renderManagedFiles(server, profiles);
+  const normalized = normalizeServerConfig(server);
+  const files = {
+    ...renderManagedFiles(normalized, profiles),
+    ...renderTypescriptReleaseMetadataFiles(targetRoot, normalized, profiles),
+  };
   for (const [relativePath, content] of Object.entries(files)) {
     const absolutePath = path.join(targetRoot, relativePath);
     fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
@@ -157,9 +161,7 @@ export function buildManagedBaseline(server, profiles, templateData) {
 
   if (normalized.type === "typescript") {
     const managedDependencies = new Set(
-      profiles.ci.managedBaseline?.dependencies ?? [
-        "@modelcontextprotocol/sdk",
-      ],
+      profiles.ci.managedBaseline?.dependencies ?? [],
     );
     const managedDevDependencies = new Set(
       profiles.ci.managedBaseline?.devDependencies ?? [],
@@ -320,20 +322,13 @@ function renderCiWorkflow(server, profiles) {
 }
 
 function renderTypescriptCiWorkflow(server, ciProfile) {
-  const nodeVersions = normalizeNodeVersions(ciProfile);
+  const nodeVersion = normalizeNodeVersions(ciProfile)[0];
   const coverageStep = ciProfile.coverageCommand
     ? `
       - name: Test coverage
         run: ${ciProfile.coverageCommand}`
     : "";
-  const integrationEnv = renderWorkflowEnv(server.integrationTestSecrets ?? []);
-  const integrationStep = ciProfile.integrationTestCommand
-    ? `
-
-      - name: Integration tests
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'${integrationEnv}
-        run: ${ciProfile.integrationTestCommand}`
-    : "";
+  const integrationJob = renderTypescriptIntegrationJob(server, ciProfile);
 
   return `name: CI
 
@@ -346,16 +341,16 @@ on:
 
 jobs:
   test:
+    name: test
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [${nodeVersions.map((version) => `"${version}"`).join(", ")}]
     steps:
-      - uses: actions/checkout@v6
-
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          node-version: \${{ matrix.node-version }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "${nodeVersion}"
           cache: "npm"
 
       - name: Install dependencies
@@ -368,7 +363,46 @@ jobs:
         run: npm run build
 
       - name: Test
-        run: ${ciProfile.testCommand}${coverageStep}${integrationStep}
+        run: ${ciProfile.testCommand}${coverageStep}${integrationJob}
+`;
+}
+
+function renderTypescriptIntegrationJob(server, ciProfile) {
+  if (!ciProfile.integrationTestCommand) {
+    return "";
+  }
+
+  const runWhen = ciProfile.integrationTestWhen ?? "push-main";
+  if (runWhen !== "push-main") {
+    throw new Error(`Unsupported integration test schedule: ${runWhen}`);
+  }
+
+  const env = renderWorkflowEnv(server.integrationTestSecrets ?? []);
+  const continueOnError = ciProfile.integrationContinueOnError ? "true" : "false";
+
+  return `
+
+  integration:
+    name: Integration${ciProfile.integrationContinueOnError ? " (non-blocking)" : ""}
+    needs: test
+    if: \${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    continue-on-error: ${continueOnError}
+    runs-on: ubuntu-latest${env}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "${normalizeNodeVersions(ciProfile)[0]}"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Integration tests
+        run: ${ciProfile.integrationTestCommand}
 `;
 }
 
@@ -420,10 +454,12 @@ ${defaultsBlock}jobs:
         python-version: ["${ciProfile.pythonVersions.join('", "')}"]
 
     steps:
-      - uses: actions/checkout@v6\${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag && format('\n        with:\n          ref: {0}', github.event.inputs.tag) || '' }}
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: \${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.sha }}
 
       - name: Set up Python \${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: \${{ matrix.python-version }}
 
@@ -442,7 +478,7 @@ ${defaultsBlock}jobs:
           pytest ${coverageArgs} --cov-report=xml
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@a99c28d3f0da835de33ff2feb2e15691c7b9641f # v7
         with:
           files: ${coverageFile}
         continue-on-error: true
@@ -484,26 +520,26 @@ jobs:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
+        uses: github/codeql-action/init@988661ebb5e81487b3fb31b2185d2856c0a10679 # v4
         with:
           languages: typescript${codeqlConfig}
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v4
+        uses: github/codeql-action/autobuild@988661ebb5e81487b3fb31b2185d2856c0a10679 # v4
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v4
+        uses: github/codeql-action/analyze@988661ebb5e81487b3fb31b2185d2856c0a10679 # v4
 
   audit:
     name: Dependency Audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: "24"
           cache: "npm"
@@ -554,26 +590,26 @@ jobs:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
+        uses: github/codeql-action/init@988661ebb5e81487b3fb31b2185d2856c0a10679 # v4
         with:
           languages: python
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v4
+        uses: github/codeql-action/autobuild@988661ebb5e81487b3fb31b2185d2856c0a10679 # v4
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v4
+        uses: github/codeql-action/analyze@988661ebb5e81487b3fb31b2185d2856c0a10679 # v4
 
   audit:
     name: Dependency Audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.11"
 
@@ -591,9 +627,9 @@ jobs:
     name: Bandit Security Scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.11"
 
@@ -733,6 +769,61 @@ function renderReleaseFiles(server, profiles) {
   return files;
 }
 
+function renderTypescriptReleaseMetadataFiles(targetRoot, server, profiles) {
+  if (
+    server.type !== "typescript" ||
+    profiles.release.mode !== "manifest"
+  ) {
+    return {};
+  }
+
+  const packageRoot = path.join(targetRoot, server.packagePath);
+  const packageJsonPath = path.join(packageRoot, "package.json");
+  if (!fs.existsSync(packageJsonPath)) {
+    return {};
+  }
+
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+  if (typeof packageJson.version !== "string" || packageJson.version === "") {
+    return {};
+  }
+
+  return {
+    "release-please-config.json": renderTypescriptReleasePleaseConfig(),
+    ".release-please-manifest.json": `${JSON.stringify(
+      { ".": packageJson.version },
+      null,
+      2,
+    )}\n`,
+  };
+}
+
+function renderTypescriptReleasePleaseConfig() {
+  return `{
+  "packages": {
+    ".": {
+      "release-type": "node",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true,
+      "include-component-in-tag": false,
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "server.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "server.json",
+          "jsonpath": "$.packages[0].version"
+        }
+      ]
+    }
+  }
+}
+`;
+}
+
 function renderTypescriptReleaseWorkflow(server, releaseProfile) {
   const releaseConfig =
     releaseProfile.mode === "manifest"
@@ -752,11 +843,12 @@ function renderTypescriptReleaseWorkflow(server, releaseProfile) {
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: \${{ needs.release-please.outputs.tag_name }}
+          persist-credentials: false
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: "24"
           cache: "npm"
@@ -765,7 +857,7 @@ function renderTypescriptReleaseWorkflow(server, releaseProfile) {
       - run: npm run build:extension
 
       - name: Upload Extension to Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@c12583777ecdfd3be55c69cf75464299dc01057e # v3
         with:
           tag_name: \${{ needs.release-please.outputs.tag_name }}
           files: "*.mcpb"`
@@ -778,19 +870,21 @@ on:
     branches:
       - main
 
-permissions:
-  contents: write
-  pull-requests: write
+permissions: {}
 
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
     outputs:
       release_created: \${{ steps.release.outputs.release_created }}
       tag_name: \${{ steps.release.outputs.tag_name }}
       sha: \${{ steps.release.outputs.sha }}
     steps:
-      - uses: googleapis/release-please-action@v5
+      - uses: googleapis/release-please-action@0dfd8538845b8e92600d271a895a5372865d4062 # v5
         id: release
         with:
 ${releaseConfig}
@@ -805,18 +899,18 @@ ${releaseConfig}
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: \${{ needs.release-please.outputs.tag_name }}
+          persist-credentials: false
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: "24"
           registry-url: "https://registry.npmjs.org"
-          cache: "npm"
 
-      - run: npm install -g npm@11
-      - run: npm ci
+      - run: npm install -g npm@11.19.0
+      - run: npm ci --ignore-scripts
       - run: npm run build
       - run: npm test
       - run: npm publish --provenance --access public
@@ -830,19 +924,19 @@ ${releaseConfig}
       packages: write
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: \${{ needs.release-please.outputs.tag_name }}
+          persist-credentials: false
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: "24"
           registry-url: "https://npm.pkg.github.com"
           scope: "@verygoodplugins"
-          cache: "npm"
 
-      - run: npm install -g npm@11
-      - run: npm ci
+      - run: npm install -g npm@11.19.0
+      - run: npm ci --ignore-scripts
       - run: npm run build
 
       - run: npm publish --access public
@@ -866,14 +960,27 @@ function renderTypescriptMcpRegistryPublishJob(server) {
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: \${{ needs.release-please.outputs.tag_name }}
+          persist-credentials: false
 
-      - name: Install mcp-publisher CLI
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "24"
+
+      - name: Install pinned MCP Publisher
         run: |
-          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
-          sudo mv mcp-publisher /usr/local/bin/
+          set -euo pipefail
+          archive="$RUNNER_TEMP/mcp-publisher_linux_amd64.tar.gz"
+          install_dir="$(mktemp -d "$RUNNER_TEMP/mcp-publisher.XXXXXX")"
+          curl --fail --location --show-error --silent \\
+            --output "$archive" \\
+            "https://github.com/modelcontextprotocol/registry/releases/download/v1.8.1/mcp-publisher_linux_amd64.tar.gz"
+          printf '%s  %s\\n' "a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc" "$archive" | sha256sum --check --strict
+          tar -xzf "$archive" -C "$install_dir" mcp-publisher
+          chmod +x "$install_dir/mcp-publisher"
+          echo "$install_dir" >> "$GITHUB_PATH"
 
       - name: Publish to MCP Registry
         run: |
@@ -905,7 +1012,7 @@ function renderTypescriptDocsDispatchJob(server) {
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
           ref: \${{ needs.release-please.outputs.tag_name }}
@@ -1047,9 +1154,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.11"
 
@@ -1062,7 +1169,7 @@ jobs:
         run: python -m build
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: dist
           path: ${artifactPath}
@@ -1075,13 +1182,13 @@ jobs:
       id-token: write
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           name: dist
           path: dist/
 
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
 
   create-release:
     needs: publish-pypi
@@ -1089,10 +1196,10 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@c12583777ecdfd3be55c69cf75464299dc01057e # v3
         with:
           generate_release_notes: true
 `;
@@ -1143,7 +1250,7 @@ jobs:
       tag_name: \${{ steps.release.outputs.tag_name }}
       sha: \${{ steps.release.outputs.sha }}
     steps:
-      - uses: googleapis/release-please-action@v5
+      - uses: googleapis/release-please-action@0dfd8538845b8e92600d271a895a5372865d4062 # v5
         id: release
         with:
           token: \${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
@@ -1158,19 +1265,19 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: \${{ needs.release-please.outputs.sha }}
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version: "${goVersion}"
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.11"
 
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
 
       - name: Validate version consistency
         run: python ${versionCheckScript} --tag "\${{ needs.release-please.outputs.tag_name }}"
@@ -1191,7 +1298,7 @@ jobs:
           sha256sum * > SHA256SUMS.txt
 
       - name: Upload release artifacts
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@c12583777ecdfd3be55c69cf75464299dc01057e # v3
         with:
           tag_name: \${{ needs.release-please.outputs.tag_name }}
           files: dist/*
@@ -1221,8 +1328,8 @@ jobs:
     name: Version Consistency
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.11"
       - name: Validate project versions are in sync
@@ -1232,8 +1339,8 @@ jobs:
     name: Python Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
       - name: Install dependencies
         run: |
           cd ${server.packagePath}
@@ -1252,12 +1359,12 @@ jobs:
     name: Go Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version: "${goVersion}"
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@9fae48acfc02a90574d7c304a1758ef9895495fa # v7
         with:
           version: v2.7.1
           working-directory: ${goPath}
@@ -1266,8 +1373,8 @@ jobs:
     name: Go Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version: "${goVersion}"
       - name: Build
@@ -1279,8 +1386,8 @@ jobs:
     name: Python Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
       - name: Install dependencies
         run: |
           cd ${server.packagePath}
@@ -1317,42 +1424,42 @@ jobs:
     name: CodeQL Analysis (Python)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
+        uses: github/codeql-action/init@988661ebb5e81487b3fb31b2185d2856c0a10679 # v4
         with:
           languages: python
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v4
+        uses: github/codeql-action/autobuild@988661ebb5e81487b3fb31b2185d2856c0a10679 # v4
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v4
+        uses: github/codeql-action/analyze@988661ebb5e81487b3fb31b2185d2856c0a10679 # v4
 
   codeql-go:
     name: CodeQL Analysis (Go)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version: "${goVersion}"
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
+        uses: github/codeql-action/init@988661ebb5e81487b3fb31b2185d2856c0a10679 # v4
         with:
           languages: go
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v4
+        uses: github/codeql-action/autobuild@988661ebb5e81487b3fb31b2185d2856c0a10679 # v4
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v4
+        uses: github/codeql-action/analyze@988661ebb5e81487b3fb31b2185d2856c0a10679 # v4
 
   python-audit:
     name: Python Dependency Audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.11"
       - name: Install pip-audit
@@ -1371,8 +1478,8 @@ jobs:
     name: Bandit Security Scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.11"
       - name: Install bandit
@@ -1385,8 +1492,8 @@ jobs:
     name: Go Vulnerability Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version: "${goVersion}"
       - name: Install govulncheck
@@ -1423,16 +1530,16 @@ jobs:
     name: Validate Release Inputs
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: \${{ github.event.inputs.tag }}
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version: "${goVersion}"
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.11"
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
       - name: Validate version consistency
         run: |
           python ${versionCheckScript} --tag "\${{ github.event.inputs.tag }}"
@@ -1441,7 +1548,7 @@ jobs:
           cd ${server.goPackagePath}
           go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.7.1 config verify
       - name: Run Go lint
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@9fae48acfc02a90574d7c304a1758ef9895495fa # v7
         with:
           version: v2.7.1
           working-directory: ${server.goPackagePath}
@@ -1464,13 +1571,13 @@ jobs:
     needs: validate-release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: \${{ github.event.inputs.tag }}
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version: "${goVersion}"
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
       - name: Build release artifacts
         run: |
           mkdir -p dist
@@ -1483,7 +1590,7 @@ jobs:
           cd dist
           sha256sum * > SHA256SUMS.txt
       - name: Create GitHub release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@c12583777ecdfd3be55c69cf75464299dc01057e # v3
         with:
           tag_name: \${{ github.event.inputs.tag }}
           files: dist/*
@@ -1499,12 +1606,12 @@ function renderWorkflowEnv(secretNames) {
 
   const envLines = secretNames
     .map(
-      (secretName) => `          ${secretName}: \${{ secrets.${secretName} }}`,
+      (secretName) => `      ${secretName}: \${{ secrets.${secretName} }}`,
     )
     .join("\n");
 
   return `
-        env:
+    env:
 ${envLines}`;
 }
 
@@ -1559,7 +1666,7 @@ export default tseslint.config(
 
 function renderVitestConfig(server, profiles) {
   const coverageExcludes =
-    profiles.ci.id === "ts-vitest"
+    profiles.ci.integrationTestCommand
       ? `['node_modules/', 'dist/', 'tests/', 'tests/integration/**', '*.config.*']`
       : `['node_modules/', 'dist/', 'tests/', '*.config.*']`;
 

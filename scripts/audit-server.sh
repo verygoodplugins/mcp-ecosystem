@@ -128,12 +128,16 @@ for file in "${REQUIRED_FILES[@]}"; do
     fi
 done
 
-# Check CLAUDE.md (recommended)
-if [[ -f "$REPO_ROOT/CLAUDE.md" ]]; then
-    echo "✅ CLAUDE.md exists"
+# Check host-neutral agent instructions (recommended).
+if [[ -f "$REPO_ROOT/AGENTS.md" ]]; then
+    echo "✅ AGENTS.md exists"
 else
-    echo "⚠️  CLAUDE.md missing (recommended)"
+    echo "⚠️  AGENTS.md missing (recommended)"
     ((WARNINGS++))
+fi
+
+if [[ -f "$REPO_ROOT/CLAUDE.md" ]]; then
+    echo "✅ CLAUDE.md compatibility entry point exists"
 fi
 
 # Check server.json (MCP Registry)
@@ -149,7 +153,7 @@ if [[ -f "$REPO_ROOT/server.json" ]]; then
     fi
     
     # Check repository.source field
-    if grep -q '"source":\s*"github"' "$REPO_ROOT/server.json"; then
+    if grep -Eq '"source"[[:space:]]*:[[:space:]]*"github"' "$REPO_ROOT/server.json"; then
         echo "✅ server.json has repository.source: \"github\""
     elif grep -q '"source"' "$REPO_ROOT/server.json"; then
         echo "⚠️  server.json repository.source should be \"github\""
@@ -157,7 +161,7 @@ if [[ -f "$REPO_ROOT/server.json" ]]; then
     fi
     
     # Check transport is object format
-    if grep -q '"transport":\s*{\s*"type"' "$REPO_ROOT/server.json"; then
+    if node --input-type=module -e 'import fs from "node:fs"; const manifest = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); process.exit(manifest.packages?.every((pkg) => pkg.transport?.type === "stdio") ? 0 : 1);' "$REPO_ROOT/server.json" 2>/dev/null; then
         echo "✅ server.json has correct transport format"
     elif grep -q '"transport"' "$REPO_ROOT/server.json"; then
         echo "⚠️  server.json transport should be { \"type\": \"stdio\" }"
@@ -315,10 +319,26 @@ if [[ "$SERVER_TYPE" == "typescript" ]]; then
     fi
     
     # Check files array exists
-    if grep -q '"files"' "$PACKAGE_ROOT/package.json"; then
-        echo "✅ files array configured"
+    if node --input-type=module -e 'import fs from "node:fs"; import path from "node:path"; const pkgPath = process.argv[1]; const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8")); const root = path.dirname(pkgPath); const allowed = new Set(["dist", "dist/", "README.md", "LICENSE", "CHANGELOG.md"]); const files = pkg.files; const bins = typeof pkg.bin === "string" ? [pkg.bin] : Object.values(pkg.bin ?? {}); const validBin = (target) => typeof target === "string" && target.startsWith("dist/") && !target.includes("..") && (!fs.existsSync(path.join(root, target)) || (fs.statSync(path.join(root, target)).mode & 0o111) !== 0); const valid = Array.isArray(files) && files.length > 0 && files.every((file) => allowed.has(file)) && files.some((file) => file === "dist" || file === "dist/") && bins.length > 0 && bins.every(validBin); process.exit(valid ? 0 : 1);' "$PACKAGE_ROOT/package.json" 2>/dev/null; then
+        echo "✅ package files allowlist and bin targets are restricted"
     else
-        echo "⚠️  files array missing (controls what's published to npm)"
+        echo "❌ package.json must restrict files to dist/docs and expose a dist/ executable bin"
+        ((ERRORS++))
+    fi
+
+    if command -v npm >/dev/null 2>&1; then
+        PACK_JSON="$(cd "$PACKAGE_ROOT" && npm pack --dry-run --json --ignore-scripts 2>/dev/null || true)"
+        if [[ -z "$PACK_JSON" ]]; then
+            echo "⚠️  Could not inspect npm package contents with npm pack --dry-run"
+            ((WARNINGS++))
+        elif printf '%s' "$PACK_JSON" | node --input-type=module -e 'import fs from "node:fs"; const data = JSON.parse(fs.readFileSync(0, "utf8")); const files = data[0]?.files?.map((entry) => entry.path) ?? []; const unsafe = files.filter((file) => /(^|\/)(\.env(?:\.|$)|node_modules|\.git|\.github|coverage|tests?|src)(\/|$)/.test(file)); if (unsafe.length) { console.error(unsafe.join("\n")); process.exit(1); }' 2>/dev/null; then
+            echo "✅ npm pack dry-run contains no source, test, credential, or VCS files"
+        else
+            echo "❌ npm pack dry-run would include prohibited package content"
+            ((ERRORS++))
+        fi
+    else
+        echo "⚠️  npm not found; skipping npm package content inspection"
         ((WARNINGS++))
     fi
 
@@ -336,16 +356,16 @@ if [[ "$SERVER_TYPE" == "typescript" ]]; then
     fi
     
     # Check MCP SDK version
-    if grep -q '@modelcontextprotocol/sdk' "$PACKAGE_ROOT/package.json"; then
-        SDK_VERSION=$(grep -o '"@modelcontextprotocol/sdk":\s*"[^"]*"' "$PACKAGE_ROOT/package.json" | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' | head -1)
+    if grep -q '@modelcontextprotocol/server' "$PACKAGE_ROOT/package.json"; then
+        SDK_VERSION=$(grep -o '"@modelcontextprotocol/server"[[:space:]]*:[[:space:]]*"[^"]*"' "$PACKAGE_ROOT/package.json" | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' | head -1)
         if [[ -n "$SDK_VERSION" ]]; then
             # Extract major.minor for comparison
             MAJOR=$(echo "$SDK_VERSION" | cut -d. -f1)
             MINOR=$(echo "$SDK_VERSION" | cut -d. -f2)
-            if [[ "$MAJOR" -ge 1 && "$MINOR" -ge 25 ]] || [[ "$MAJOR" -gt 1 ]]; then
-                echo "✅ MCP SDK version $SDK_VERSION (>= 1.25.1)"
+            if [[ "$MAJOR" -ge 2 ]]; then
+                echo "✅ MCP server package version $SDK_VERSION (>= 2.0.0)"
             else
-                echo "⚠️  MCP SDK version $SDK_VERSION (recommend >= 1.25.1)"
+                echo "⚠️  MCP server package version $SDK_VERSION (recommend >= 2.0.0)"
                 ((WARNINGS++))
             fi
         else
@@ -353,8 +373,13 @@ if [[ "$SERVER_TYPE" == "typescript" ]]; then
             ((WARNINGS++))
         fi
     else
-        echo "❌ @modelcontextprotocol/sdk not found in dependencies"
-        ((ERRORS++))
+        if grep -q '@modelcontextprotocol/sdk' "$PACKAGE_ROOT/package.json"; then
+            echo "⚠️  Legacy @modelcontextprotocol/sdk detected; migrate code and dependencies to @modelcontextprotocol/server v2 together"
+            ((WARNINGS++))
+        else
+            echo "❌ No MCP server package found in dependencies"
+            ((ERRORS++))
+        fi
     fi
 else
     # Check pyproject.toml fields
@@ -402,7 +427,7 @@ if [[ "$SERVER_TYPE" == "typescript" ]]; then
         echo "✅ tsconfig.json exists"
         
         # Check for strict mode
-        if grep -q '"strict":\s*true' "$PACKAGE_ROOT/tsconfig.json"; then
+        if grep -Eq '"strict"[[:space:]]*:[[:space:]]*true' "$PACKAGE_ROOT/tsconfig.json"; then
             echo "✅ tsconfig.json has strict: true"
         else
             echo "⚠️  tsconfig.json should have strict: true"
@@ -410,7 +435,7 @@ if [[ "$SERVER_TYPE" == "typescript" ]]; then
         fi
         
         # Check for ES2022 target
-        if grep -q '"target":\s*"ES2022"' "$PACKAGE_ROOT/tsconfig.json"; then
+        if grep -Eq '"target"[[:space:]]*:[[:space:]]*"ES2022"' "$PACKAGE_ROOT/tsconfig.json"; then
             echo "✅ tsconfig.json targets ES2022"
         else
             echo "⚠️  tsconfig.json should target ES2022"
@@ -533,9 +558,9 @@ echo "-----------------------------------"
 
 if [[ -f "$REPO_ROOT/README.md" ]]; then
     # Check for external links without UTM
-    if grep -E 'https://(verygoodplugins|wpfusion|automem)\.com[^?]' "$REPO_ROOT/README.md" > /dev/null 2>&1; then
+    if grep -E 'https://(verygoodplugins|wpfusion|automem)\.com[^[:space:]"<)]*' "$REPO_ROOT/README.md" | grep -Ev '\?[^[:space:]"<)]*utm_source=' > /dev/null 2>&1; then
         echo "⚠️  Found links without UTM tracking"
-        grep -E 'https://(verygoodplugins|wpfusion|automem)\.com[^?]' "$REPO_ROOT/README.md" | head -3
+        grep -E 'https://(verygoodplugins|wpfusion|automem)\.com[^[:space:]"<)]*' "$REPO_ROOT/README.md" | grep -Ev '\?[^[:space:]"<)]*utm_source=' | head -3
         ((WARNINGS++))
     else
         echo "✅ All external links have UTM (or none found)"
@@ -566,13 +591,13 @@ else
     ((WARNINGS++))
 fi
 
-# Check CodeQL action version (v4 required, v3 deprecated Dec 2026)
+# Check CodeQL action pin.
 if [[ -f "$REPO_ROOT/.github/workflows/security.yml" ]]; then
-    if grep -q 'codeql-action/.*@v3' "$REPO_ROOT/.github/workflows/security.yml"; then
-        echo "⚠️  CodeQL Action v3 deprecated (update to v4)"
+    if grep -q 'github/codeql-action/.*@988661ebb5e81487b3fb31b2185d2856c0a10679' "$REPO_ROOT/.github/workflows/security.yml"; then
+        echo "✅ CodeQL Action v4 is SHA-pinned"
+    else
+        echo "⚠️  CodeQL Action should use the approved SHA pin"
         ((WARNINGS++))
-    elif grep -q 'codeql-action/.*@v4' "$REPO_ROOT/.github/workflows/security.yml"; then
-        echo "✅ CodeQL Action v4 (current)"
     fi
 fi
 

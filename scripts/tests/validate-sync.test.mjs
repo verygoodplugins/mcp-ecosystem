@@ -16,7 +16,7 @@ function makeTempRepo(files) {
   return root;
 }
 
-test("fails preflight when ts vitest profile is missing coverage script", () => {
+test("fails preflight when Vitest integration profile is missing coverage script", () => {
   const repoRoot = makeTempRepo({
     "package.json": JSON.stringify({
       name: "@verygoodplugins/mcp-example",
@@ -24,6 +24,7 @@ test("fails preflight when ts vitest profile is missing coverage script", () => 
         lint: "eslint src/",
         build: "tsc",
         test: "vitest run",
+        "test:integration": "vitest run tests/integration",
       },
     }),
     "package-lock.json": JSON.stringify({
@@ -39,7 +40,7 @@ test("fails preflight when ts vitest profile is missing coverage script", () => 
       type: "typescript",
       packageLayout: "root",
       packagePath: ".",
-      ciProfile: "ts-vitest",
+      ciProfile: "ts-vitest-integration-nonblocking",
       releaseProfile: "release-please-manifest",
       securityProfile: "strict",
       templateTier: "strict",
@@ -47,8 +48,14 @@ test("fails preflight when ts vitest profile is missing coverage script", () => 
     },
     profiles: {
       ci: {
-        id: "ts-vitest",
-        requiredScripts: ["lint", "build", "test", "test:coverage"],
+        id: "ts-vitest-integration-nonblocking",
+        requiredScripts: [
+          "lint",
+          "build",
+          "test",
+          "test:coverage",
+          "test:integration",
+        ],
       },
       release: {
         id: "release-please-manifest",
@@ -68,7 +75,13 @@ test("fails preflight when ts vitest profile is missing coverage script", () => 
   assert.equal(result.ok, false);
   assert.deepEqual(
     result.issues.map((issue) => issue.code),
-    ["missing-script", "missing-release-file", "missing-release-file"],
+    [
+      "missing-script",
+      "missing-package-allowlist",
+      "missing-package-bin",
+      "missing-release-file",
+      "missing-release-file",
+    ],
   );
 });
 
@@ -164,6 +177,8 @@ test("fails preflight when repo capabilities are not supported by selected profi
   assert.deepEqual(
     result.issues.map((issue) => issue.code),
     [
+      "missing-package-allowlist",
+      "missing-package-bin",
       "unsupported-desktop-extension-release",
       "unsupported-integration-test-profile",
     ],
@@ -221,7 +236,48 @@ test("fails preflight when desktop extension release lacks build script", () => 
   assert.equal(result.ok, false);
   assert.deepEqual(
     result.issues.map((issue) => issue.code),
-    ["missing-extension-build-script"],
+    [
+      "missing-package-allowlist",
+      "missing-package-bin",
+      "missing-extension-build-script",
+    ],
+  );
+});
+
+test("rejects package content and executable targets outside the approved dist allowlist", () => {
+  const repoRoot = makeTempRepo({
+    "package.json": JSON.stringify({
+      name: "@verygoodplugins/mcp-example",
+      version: "1.0.0",
+      files: ["dist/", "src/"],
+      bin: { "mcp-example": "src/index.ts" },
+      scripts: { lint: "eslint .", build: "tsc", test: "vitest run" },
+    }),
+  });
+
+  const result = validateRepositorySync({
+    repoRoot,
+    server: {
+      name: "mcp-example",
+      type: "typescript",
+      packageLayout: "root",
+      packagePath: ".",
+      ciProfile: "ts-jest",
+      releaseProfile: "release-please-simple",
+      securityProfile: "strict",
+      templateTier: "compatible",
+      propagate: true,
+    },
+    profiles: {
+      ci: { id: "ts-jest", requiredScripts: ["lint", "build", "test"] },
+      release: { id: "release-please-simple", requiredFiles: [] },
+    },
+  });
+
+  assert.equal(result.ok, false);
+  assert.deepEqual(
+    result.issues.map((issue) => issue.code),
+    ["unapproved-package-file", "unsafe-package-bin-target"],
   );
 });
 

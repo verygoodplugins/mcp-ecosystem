@@ -13,6 +13,7 @@ import {
 import {
   attemptLockfileRefresh,
   parseTomlFile,
+  syncReleasePleaseManifest,
   syncPythonBaseline,
   syncTypescriptBaseline,
 } from "./lib/sync-template-baseline-core.mjs";
@@ -98,10 +99,26 @@ function syncByType(serverType, targetRoot, server = null, profiles = null) {
         ? buildManagedBaseline(server, profiles, templatePackageJson)
         : templatePackageJson;
 
-    return syncTypescriptBaseline({
+    const baselineReport = syncTypescriptBaseline({
       templatePackageJson: managedBaseline,
       targetPath,
     });
+    if (!server || profiles?.release.mode !== "manifest") {
+      return baselineReport;
+    }
+
+    const packageVersion = JSON.parse(fs.readFileSync(targetPath, "utf8")).version;
+    const releaseReport = syncReleasePleaseManifest({
+      targetRoot,
+      packageVersion,
+    });
+    return {
+      ...baselineReport,
+      changed: baselineReport.changed || releaseReport.changed,
+      packageManifestChanged: baselineReport.packageManifestChanged,
+      changes: [...baselineReport.changes, ...releaseReport.changes],
+      issues: [...baselineReport.issues, ...releaseReport.issues],
+    };
   }
 
   if (serverType === "python") {
