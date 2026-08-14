@@ -119,7 +119,7 @@ test("renders a stable single-node TypeScript CI check and scoped npm Dependabot
   const ci = files[".github/workflows/ci.yml"];
   const dependabot = files[".github/dependabot.yml"];
 
-  assert.match(ci, /name: Test/);
+  assert.match(ci, /name: test/);
   assert.match(ci, /node-version: "24"/);
   assert.match(ci, /actions\/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1/);
   assert.match(ci, /actions\/setup-node@820762786026740c76f36085b0efc47a31fe5020/);
