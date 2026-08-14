@@ -908,7 +908,6 @@ ${releaseConfig}
         with:
           node-version: "24"
           registry-url: "https://registry.npmjs.org"
-          cache: "npm"
 
       - run: npm install -g npm@11.19.0
       - run: npm ci --ignore-scripts
@@ -935,7 +934,6 @@ ${releaseConfig}
           node-version: "24"
           registry-url: "https://npm.pkg.github.com"
           scope: "@verygoodplugins"
-          cache: "npm"
 
       - run: npm install -g npm@11.19.0
       - run: npm ci --ignore-scripts
@@ -970,12 +968,24 @@ function renderTypescriptMcpRegistryPublishJob(server) {
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: "24"
-          cache: "npm"
+
+      - name: Install pinned MCP Publisher
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/mcp-publisher_linux_amd64.tar.gz"
+          install_dir="$(mktemp -d "$RUNNER_TEMP/mcp-publisher.XXXXXX")"
+          curl --fail --location --show-error --silent \\
+            --output "$archive" \\
+            "https://github.com/modelcontextprotocol/registry/releases/download/v1.8.1/mcp-publisher_linux_amd64.tar.gz"
+          printf '%s  %s\\n' "a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc" "$archive" | sha256sum --check --strict
+          tar -xzf "$archive" -C "$install_dir" mcp-publisher
+          chmod +x "$install_dir/mcp-publisher"
+          echo "$install_dir" >> "$GITHUB_PATH"
 
       - name: Publish to MCP Registry
         run: |
-          npm exec --yes --package=mcp-publisher@0.4.2 -- mcp-publisher login github-oidc
-          npm exec --yes --package=mcp-publisher@0.4.2 -- mcp-publisher publish
+          mcp-publisher login github-oidc
+          mcp-publisher publish
         env:
           MCP_REGISTRY_URL: https://registry.modelcontextprotocol.io`;
 }

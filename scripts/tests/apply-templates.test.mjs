@@ -16,6 +16,9 @@ const applyScript = path.resolve('scripts/apply-templates.sh');
 const propagationWorkflow = path.resolve(
   '.github/workflows/propagate-templates.yml',
 );
+const staticReleaseWorkflow = path.resolve(
+  'templates/typescript/.github/workflows/release-please.yml',
+);
 
 function makeFreeScoutRepo({ ci, manifest } = {}) {
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-apply-'));
@@ -139,4 +142,51 @@ test('propagation workflow pins token-bearing setup actions to full SHAs', () =>
     workflow,
     /actions\/setup-node@820762786026740c76f36085b0efc47a31fe5020/,
   );
+});
+
+test('static TypeScript release template uses OIDC MCP Registry publishing', () => {
+  const workflow = fs.readFileSync(staticReleaseWorkflow, 'utf8');
+  const npmPublishJobStart = workflow.indexOf('  npm-publish:');
+  const ghPackagesJobStart = workflow.indexOf('  gh-packages-publish:');
+  const registryJobStart = workflow.indexOf('  mcp-registry-publish:');
+
+  assert.ok(npmPublishJobStart >= 0, 'expected npm-publish job');
+  assert.ok(ghPackagesJobStart >= 0, 'expected gh-packages-publish job');
+  assert.match(
+    workflow,
+    /gh-packages-publish:[\s\S]*?continue-on-error: true/,
+  );
+  assert.ok(registryJobStart >= 0, 'expected mcp-registry-publish job');
+
+  const npmPublishJob = workflow.slice(npmPublishJobStart, ghPackagesJobStart);
+  const ghPackagesJob = workflow.slice(ghPackagesJobStart, registryJobStart);
+  assert.doesNotMatch(npmPublishJob, /cache: "npm"/);
+  assert.doesNotMatch(ghPackagesJob, /cache: "npm"/);
+
+  const registryJob = workflow.slice(registryJobStart);
+  assert.match(registryJob, /needs: \[release-please, npm-publish\]/);
+  assert.match(registryJob, /contents: read/);
+  assert.match(registryJob, /id-token: write/);
+  assert.match(
+    registryJob,
+    /ref: \$\{\{ needs\.release-please\.outputs\.tag_name \}\}/,
+  );
+  assert.match(registryJob, /persist-credentials: false/);
+  assert.match(registryJob, /node-version: "24"/);
+  assert.match(
+    registryJob,
+    /https:\/\/github\.com\/modelcontextprotocol\/registry\/releases\/download\/v1\.8\.1\/mcp-publisher_linux_amd64\.tar\.gz/,
+  );
+  assert.match(
+    registryJob,
+    /a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc/,
+  );
+  assert.match(registryJob, /curl --fail --location --show-error --silent/);
+  assert.match(registryJob, /sha256sum --check --strict/);
+  assert.match(registryJob, /tar -xzf/);
+  assert.match(registryJob, /\$GITHUB_PATH/);
+  assert.doesNotMatch(registryJob, /npm exec/);
+  assert.doesNotMatch(registryJob, /--package=mcp-publisher/);
+  assert.match(registryJob, /mcp-publisher login github-oidc/);
+  assert.doesNotMatch(registryJob, /continue-on-error/);
 });

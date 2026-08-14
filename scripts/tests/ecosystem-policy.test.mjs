@@ -161,6 +161,7 @@ test("renders GitHub Packages mirror publish job for TypeScript releases", () =>
   assert.match(releaseWorkflow, /googleapis\/release-please-action@0dfd8538845b8e92600d271a895a5372865d4062/);
   assert.match(releaseWorkflow, /permissions: \{\}/);
   assert.match(releaseWorkflow, /npm ci --ignore-scripts/);
+  assert.doesNotMatch(releaseWorkflow, /cache: "npm"/);
   assert.match(releaseWorkflow, /npm ci/);
   assert.doesNotMatch(releaseWorkflow, /ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION/);
   assert.match(releaseWorkflow, /gh-packages-publish:/);
@@ -426,6 +427,39 @@ test("renders FreeScout integration as a secret-mapped non-blocking job", () => 
     files[".github/workflows/release-please.yml"],
     /manifest-file: "\.release-please-manifest\.json"/,
   );
+  assert.match(
+    files[".github/workflows/release-please.yml"],
+    /mcp-registry-publish:[\s\S]*?id-token: write/,
+  );
+  assert.match(
+    files[".github/workflows/release-please.yml"],
+    /mcp-publisher login github-oidc/,
+  );
+  const releaseWorkflow = files[".github/workflows/release-please.yml"];
+  const registryJob = releaseWorkflow.slice(
+    releaseWorkflow.indexOf("  mcp-registry-publish:"),
+  );
+  assert.match(
+    registryJob,
+    /https:\/\/github\.com\/modelcontextprotocol\/registry\/releases\/download\/v1\.8\.1\/mcp-publisher_linux_amd64\.tar\.gz/,
+  );
+  assert.match(
+    registryJob,
+    /a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc/,
+  );
+  assert.match(registryJob, /sha256sum --check --strict/);
+  assert.doesNotMatch(registryJob, /npm exec/);
+  assert.doesNotMatch(registryJob, /--package=mcp-publisher/);
+  const npmPublishJob = releaseWorkflow.slice(
+    releaseWorkflow.indexOf("  npm-publish:"),
+    releaseWorkflow.indexOf("  gh-packages-publish:"),
+  );
+  const ghPackagesJob = releaseWorkflow.slice(
+    releaseWorkflow.indexOf("  gh-packages-publish:"),
+    releaseWorkflow.indexOf("  mcp-registry-publish:"),
+  );
+  assert.doesNotMatch(npmPublishJob, /cache: "npm"/);
+  assert.doesNotMatch(ghPackagesJob, /cache: "npm"/);
 });
 
 test("renders go-aware monorepo workflows for whatsapp-mcp style repos", () => {
