@@ -29,6 +29,7 @@ test("apply-template followups pass for a complete TypeScript manifest set", () 
         publishConfig: { access: "public" },
         files: ["dist"],
         scripts: { test: "vitest run" },
+        version: "1.0.0",
       },
       null,
       2,
@@ -44,6 +45,14 @@ test("apply-template followups pass for a complete TypeScript manifest set", () 
       null,
       2,
     ),
+  );
+  fs.writeFileSync(
+    path.join(root, "release-please-config.json"),
+    JSON.stringify({ packages: { ".": { "release-type": "node" } } }),
+  );
+  fs.writeFileSync(
+    path.join(root, ".release-please-manifest.json"),
+    JSON.stringify({ ".": "1.0.0" }),
   );
 
   const output = runFollowups(root);
@@ -64,6 +73,8 @@ test("apply-template followups report missing TypeScript registry metadata", () 
   assert.match(output, /package\.json: Add 'mcpName' field/);
   assert.match(output, /package\.json: Ensure 'publishConfig\.access' is 'public'/);
   assert.match(output, /Create server\.json for MCP Registry/);
+  assert.match(output, /Create release-please-config\.json/);
+  assert.match(output, /Create \.release-please-manifest\.json/);
 });
 
 test("apply-template followups report missing Python metadata", () => {

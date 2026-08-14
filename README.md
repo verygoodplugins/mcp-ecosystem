@@ -109,6 +109,11 @@ Key requirements:
   `TypeScript CI`, `Python CI`, and `Lint PR Title`.
 - `scripts/sync-template-baseline.mjs` updates managed dependency baselines with parsed JSON/TOML data and reports when lockfiles need regeneration.
 - `scripts/validate-sync.mjs` blocks PR creation when the generated diff is incompatible with the repo profile.
+- TypeScript templates use `@modelcontextprotocol/server` v2, Zod 4, a stable
+  Node 24 `Test` check, and host-neutral `AGENTS.md` instructions.
+- `mcp-freescout` uses the `ts-vitest-integration-nonblocking` profile: its
+  secret-mapped integration job runs after the stable test job and cannot block
+  merges; its release metadata uses `release-please-manifest`.
 - Org rulesets are the canonical branch-protection layer for MCP repos; repo-level
   GitHub booleans like `allow_auto_merge` are applied separately with
   `scripts/configure-github-defaults.sh`.

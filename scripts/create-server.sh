@@ -101,6 +101,7 @@ if [[ "$SERVER_TYPE" == "typescript" ]]; then
     # Process template files (with placeholders)
     process_template "$TEMPLATE_DIR/typescript/package.json.template" "$OUTPUT_DIR/package.json"
     process_template "$TEMPLATE_DIR/typescript/src/index.ts.template" "$OUTPUT_DIR/src/index.ts"
+    process_template "$TEMPLATE_DIR/typescript/AGENTS.md.template" "$OUTPUT_DIR/AGENTS.md"
     process_template "$TEMPLATE_DIR/typescript/CLAUDE.md.template" "$OUTPUT_DIR/CLAUDE.md"
     process_template "$TEMPLATE_DIR/typescript/README.md.template" "$OUTPUT_DIR/README.md"
     process_template "$TEMPLATE_DIR/typescript/LICENSE.template" "$OUTPUT_DIR/LICENSE"
@@ -120,37 +121,9 @@ if [[ "$SERVER_TYPE" == "typescript" ]]; then
     done
     copy_file "$TEMPLATE_DIR/typescript/.github/dependabot.yml" "$OUTPUT_DIR/.github/dependabot.yml"
     
-    # Create Release Please config with server.json version tracking
-    cat > "$OUTPUT_DIR/release-please-config.json" << 'RPEOF'
-{
-  "packages": {
-    ".": {
-      "release-type": "node",
-      "bump-minor-pre-major": true,
-      "bump-patch-for-minor-pre-major": true,
-      "include-component-in-tag": false,
-      "extra-files": [
-        {
-          "type": "json",
-          "path": "server.json",
-          "jsonpath": "$.version"
-        },
-        {
-          "type": "json",
-          "path": "server.json",
-          "jsonpath": "$.packages[0].version"
-        }
-      ]
-    }
-  }
-}
-RPEOF
-
-    cat > "$OUTPUT_DIR/.release-please-manifest.json" << 'RPEOF'
-{
-  ".": "1.0.0"
-}
-RPEOF
+    # Keep release metadata as tracked templates so create and apply agree.
+    copy_file "$TEMPLATE_DIR/typescript/release-please-config.json.template" "$OUTPUT_DIR/release-please-config.json"
+    copy_file "$TEMPLATE_DIR/typescript/.release-please-manifest.json.template" "$OUTPUT_DIR/.release-please-manifest.json"
 
     # Create empty CHANGELOG.md
     echo "# Changelog" > "$OUTPUT_DIR/CHANGELOG.md"
@@ -169,6 +142,7 @@ else
     process_template "$TEMPLATE_DIR/python/pyproject.toml.template" "$OUTPUT_DIR/pyproject.toml"
     process_template "$TEMPLATE_DIR/python/src/mcp_name/__init__.py.template" "$OUTPUT_DIR/src/mcp_$NAME_UNDERSCORE/__init__.py"
     process_template "$TEMPLATE_DIR/python/src/mcp_name/server.py.template" "$OUTPUT_DIR/src/mcp_$NAME_UNDERSCORE/server.py"
+    process_template "$TEMPLATE_DIR/python/AGENTS.md.template" "$OUTPUT_DIR/AGENTS.md"
     process_template "$TEMPLATE_DIR/python/CLAUDE.md.template" "$OUTPUT_DIR/CLAUDE.md"
     process_template "$TEMPLATE_DIR/python/README.md.template" "$OUTPUT_DIR/README.md"
     process_template "$TEMPLATE_DIR/python/LICENSE.template" "$OUTPUT_DIR/LICENSE"

@@ -1,0 +1,42 @@
+# AGENTS.md
+
+## Repository purpose
+
+`mcp-{name}` is an MCP (Model Context Protocol) server that {description}.
+
+## Common commands
+
+```bash
+python -m venv venv
+source venv/bin/activate
+pip install -e ".[dev]"
+python -m mcp_{name_underscore}.server
+pytest
+ruff check .
+ruff format --check .
+```
+
+## Project conventions
+
+- Target Python 3.11 or newer.
+- Keep protocol traffic on stdout only. Use logging configured for stderr and
+  never call `print` from a stdio MCP server.
+- Validate required configuration without logging credential values.
+- Keep external API access behind a focused client module and test it with
+  mocked responses.
+- Before opening a change, run the test suite and Ruff checks.
+
+## Layout
+
+```text
+src/mcp_{name_underscore}/server.py  MCP server entry point
+tests/                               Unit and integration tests
+server.json                          MCP Registry metadata
+```
+
+## Releases
+
+Use Conventional Commits. `feat:` creates a minor release, `fix:` a patch
+release, and breaking changes use `!` or a `BREAKING CHANGE:` footer.
+Release Please derives releases from squash-merge PR titles, so PR titles must
+also follow that format.

@@ -1,9 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 import {
+  getServerConfig,
   renderManagedFiles,
   resolveServerProfiles,
+  writeManagedFiles,
 } from "../lib/ecosystem-config.mjs";
 
 function assertNoVersionUpdateWildcardGroup(dependabotConfig) {
@@ -96,7 +101,7 @@ test("renders monorepo python managed files from inventory-style config", () => 
   );
 });
 
-test("renders TypeScript CI matrix and scoped npm Dependabot groups", () => {
+test("renders a stable single-node TypeScript CI check and scoped npm Dependabot groups", () => {
   const server = {
     name: "mcp-evernote",
     type: "typescript",
@@ -114,8 +119,12 @@ test("renders TypeScript CI matrix and scoped npm Dependabot groups", () => {
   const ci = files[".github/workflows/ci.yml"];
   const dependabot = files[".github/dependabot.yml"];
 
-  assert.match(ci, /node-version: \["24"\]/);
-  assert.match(ci, /node-version: \$\{\{ matrix\.node-version \}\}/);
+  assert.match(ci, /name: Test/);
+  assert.match(ci, /node-version: "24"/);
+  assert.match(ci, /actions\/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1/);
+  assert.match(ci, /actions\/setup-node@820762786026740c76f36085b0efc47a31fe5020/);
+  assert.doesNotMatch(ci, /matrix:/);
+  assert.doesNotMatch(ci, /matrix\.node-version/);
   assert.doesNotMatch(ci, /node-version:\s*["']?(?:18|20|22)["']?/);
 
   assert.match(dependabot, /security-updates:[\s\S]*applies-to: security-updates/);
@@ -147,8 +156,11 @@ test("renders GitHub Packages mirror publish job for TypeScript releases", () =>
   const releaseWorkflow = files[".github/workflows/release-please.yml"];
 
   assert.match(releaseWorkflow, /npm publish --provenance --access public/);
-  assert.match(releaseWorkflow, /actions\/checkout@v6/);
-  assert.match(releaseWorkflow, /actions\/setup-node@v6/);
+  assert.match(releaseWorkflow, /actions\/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1/);
+  assert.match(releaseWorkflow, /actions\/setup-node@820762786026740c76f36085b0efc47a31fe5020/);
+  assert.match(releaseWorkflow, /googleapis\/release-please-action@0dfd8538845b8e92600d271a895a5372865d4062/);
+  assert.match(releaseWorkflow, /permissions: \{\}/);
+  assert.match(releaseWorkflow, /npm ci --ignore-scripts/);
   assert.match(releaseWorkflow, /npm ci/);
   assert.doesNotMatch(releaseWorkflow, /ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION/);
   assert.match(releaseWorkflow, /gh-packages-publish:/);
@@ -160,6 +172,41 @@ test("renders GitHub Packages mirror publish job for TypeScript releases", () =>
   assert.match(
     releaseWorkflow,
     /NODE_AUTH_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/,
+  );
+});
+
+test("writes manifest release metadata synchronized with package.json", () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-release-metadata-"));
+  fs.writeFileSync(
+    path.join(repoRoot, "package.json"),
+    JSON.stringify({ version: "2.3.4" }),
+  );
+  const server = {
+    name: "mcp-evernote",
+    type: "typescript",
+    packageLayout: "root",
+    packagePath: ".",
+    ciProfile: "ts-vitest",
+    releaseProfile: "release-please-manifest",
+    securityProfile: "strict",
+    templateTier: "compatible",
+    propagate: true,
+  };
+  const profiles = resolveServerProfiles(server);
+
+  writeManagedFiles({ repoRoot, server, profiles });
+
+  assert.equal(
+    JSON.parse(
+      fs.readFileSync(path.join(repoRoot, ".release-please-manifest.json"), "utf8"),
+    )["."],
+    "2.3.4",
+  );
+  assert.equal(
+    JSON.parse(
+      fs.readFileSync(path.join(repoRoot, "release-please-config.json"), "utf8"),
+    ).packages["."]["release-type"],
+    "node",
   );
 });
 
@@ -333,6 +380,51 @@ test("renders extension release and integration CI for mcp-edd style repos", () 
   assert.match(
     files[".github/workflows/release-please.yml"],
     /npm run build:extension/,
+  );
+});
+
+test("renders FreeScout integration as a secret-mapped non-blocking job", () => {
+  const server = getServerConfig("mcp-freescout");
+  const profiles = resolveServerProfiles(server);
+
+  assert.equal(profiles.ci.id, "ts-vitest-integration-nonblocking");
+  assert.equal(profiles.release.id, "release-please-manifest");
+  assert.deepEqual(profiles.ci.requiredScripts, [
+    "lint",
+    "build",
+    "test",
+    "test:coverage",
+    "test:integration",
+  ]);
+  assert.deepEqual(profiles.ci.managedBaseline.devDependencies, [
+    "@eslint/js",
+    "@vitest/coverage-v8",
+    "eslint",
+    "eslint-config-prettier",
+    "prettier",
+    "tsx",
+    "typescript",
+    "typescript-eslint",
+    "vitest",
+  ]);
+
+  const files = renderManagedFiles(server, profiles);
+  const ci = files[".github/workflows/ci.yml"];
+
+  assert.match(ci, /run: npm run test:coverage/);
+  assert.match(ci, /integration:\n    name: Integration \(non-blocking\)/);
+  assert.match(ci, /needs: test/);
+  assert.match(ci, /continue-on-error: true/);
+  assert.match(ci, /FREESCOUT_URL: \$\{\{ secrets\.FREESCOUT_URL \}\}/);
+  assert.match(ci, /FREESCOUT_API_KEY: \$\{\{ secrets\.FREESCOUT_API_KEY \}\}/);
+  assert.match(ci, /run: npm run test:integration/);
+  assert.match(
+    files["vitest.config.ts"],
+    /'tests\/integration\/\*\*'/,
+  );
+  assert.match(
+    files[".github/workflows/release-please.yml"],
+    /manifest-file: "\.release-please-manifest\.json"/,
   );
 });
 

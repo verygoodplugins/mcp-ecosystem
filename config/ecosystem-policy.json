@@ -46,7 +46,7 @@
       "managedFeatures": ["ciWorkflow", "eslintConfig", "vitestConfig"],
       "requiredScripts": ["lint", "build", "test", "test:coverage"],
       "managedBaseline": {
-        "dependencies": ["@modelcontextprotocol/sdk"],
+        "dependencies": [],
         "devDependencies": [
           "@eslint/js",
           "@vitest/coverage-v8",
@@ -69,7 +69,7 @@
       "managedFeatures": ["ciWorkflow"],
       "requiredScripts": ["lint", "build", "test"],
       "managedBaseline": {
-        "dependencies": ["@modelcontextprotocol/sdk"],
+        "dependencies": [],
         "devDependencies": [
           "@eslint/js",
           "eslint-config-prettier",
@@ -88,7 +88,7 @@
       "managedFeatures": ["ciWorkflow"],
       "requiredScripts": ["lint", "build", "test", "test:integration"],
       "managedBaseline": {
-        "dependencies": ["@modelcontextprotocol/sdk"],
+        "dependencies": [],
         "devDependencies": [
           "@eslint/js",
           "eslint-config-prettier",
@@ -102,6 +102,38 @@
       "testCommand": "npm test",
       "integrationTestCommand": "npm run test:integration",
       "integrationTestWhen": "push-main"
+    },
+    "ts-vitest-integration-nonblocking": {
+      "id": "ts-vitest-integration-nonblocking",
+      "language": "typescript",
+      "managedFeatures": ["ciWorkflow", "eslintConfig", "vitestConfig"],
+      "requiredScripts": [
+        "lint",
+        "build",
+        "test",
+        "test:coverage",
+        "test:integration"
+      ],
+      "managedBaseline": {
+        "dependencies": [],
+        "devDependencies": [
+          "@eslint/js",
+          "@vitest/coverage-v8",
+          "eslint",
+          "eslint-config-prettier",
+          "prettier",
+          "tsx",
+          "typescript",
+          "typescript-eslint",
+          "vitest"
+        ]
+      },
+      "nodeVersions": ["24"],
+      "testCommand": "npm test",
+      "coverageCommand": "npm run test:coverage",
+      "integrationTestCommand": "npm run test:integration",
+      "integrationTestWhen": "push-main",
+      "integrationContinueOnError": true
     },
     "py-src-layout": {
       "id": "py-src-layout",
