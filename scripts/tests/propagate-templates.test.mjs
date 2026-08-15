@@ -24,6 +24,17 @@ test("workflow uses github.token for read-only events and gates write runs on th
   assert.match(workflow, /ARGS\+=\(--dry-run\)/);
 });
 
+test("workflow installs pinned uv for Python lockfile refreshes", () => {
+  const workflow = fs.readFileSync(propagationWorkflow, "utf8");
+
+  assert.match(
+    workflow,
+    /astral-sh\/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d/,
+  );
+  assert.match(workflow, /version: "0\.12\.5"/);
+  assert.match(workflow, /command -v uv/);
+});
+
 test("propagation continues after a repository is blocked and reports every enabled repository", () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-propagate-"));
   const binDir = path.join(tempRoot, "bin");
