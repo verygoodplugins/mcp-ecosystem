@@ -38,8 +38,8 @@ This scaffolds a complete project with all required files, configs, and workflow
 server-name/
 ├── src/
 │   ├── index.ts           # MCP server entry point
-│   ├── types.ts           # TypeScript interfaces
-│   ├── *-client.ts        # API client wrapper
+│   ├── types.ts           # Optional TypeScript interfaces
+│   ├── *-client.ts        # Optional API client wrapper
 │   └── cli/               # CLI commands (optional)
 ├── dist/                  # Compiled output
 ├── tests/                 # Test files
@@ -286,7 +286,7 @@ server-name/
 │   └── mcp_{name}/
 │       ├── __init__.py
 │       ├── server.py      # MCP server entry point
-│       └── client.py      # API client wrapper
+│       └── client.py      # Optional API client wrapper
 ├── tests/
 │   └── test_server.py
 ├── .github/
@@ -540,6 +540,7 @@ Example:
    - Creates release PR with changelog
    - On the release tag, publishes to npm with OIDC Trusted Publishing (no npm secret)
    - Also publishes a GitHub Packages (`npm.pkg.github.com`) mirror via `GITHUB_TOKEN`; this job is `continue-on-error: true`, so npmjs success defines a successful release. See [PUBLISHING.md](./PUBLISHING.md#github-packages-mirror-typescript) for consumer-side caveats.
+   - After npm succeeds, publishes the release to the MCP Registry with GitHub OIDC; the `mcp-registry-publish` job depends on `npm-publish`.
    - **Must use `RELEASE_PLEASE_TOKEN`** (org-level PAT) so the Release PR triggers CI workflows. PRs created by the default `GITHUB_TOKEN` don't trigger other workflows (GitHub security feature), which blocks required status checks.
    - Uses manifest mode (`release-please-config.json` + `.release-please-manifest.json`)
 
