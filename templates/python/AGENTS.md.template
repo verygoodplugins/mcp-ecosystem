@@ -36,7 +36,6 @@ server.json                          MCP Registry metadata
 
 ## Releases
 
-Use Conventional Commits. `feat:` creates a minor release, `fix:` a patch
-release, and breaking changes use `!` or a `BREAKING CHANGE:` footer.
-Release Please derives releases from squash-merge PR titles, so PR titles must
-also follow that format.
+Python releases are tag-driven, not managed by Release Please. Create and push
+a version tag such as `v1.2.3` to trigger the release workflow and publish to
+PyPI.
