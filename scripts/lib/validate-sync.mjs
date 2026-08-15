@@ -249,7 +249,13 @@ function validateTypescriptPackageSafety({
   }
 
   for (const [name, target] of Object.entries(bins)) {
-    if (!target.startsWith("dist/") || target.includes("..")) {
+    const packageRootPath = path.resolve(packageRoot);
+    const distRootPath = path.join(packageRootPath, "dist");
+    const targetPath = path.resolve(packageRootPath, target);
+    if (
+      !target.startsWith("dist/") ||
+      !isContainedPath(distRootPath, targetPath)
+    ) {
       issues.push({
         code: "unsafe-package-bin-target",
         severity: "error",
@@ -258,11 +264,36 @@ function validateTypescriptPackageSafety({
       continue;
     }
 
-    const targetPath = path.join(packageRoot, target);
-    if (!fs.existsSync(targetPath)) {
+    let stat;
+    try {
+      stat = fs.lstatSync(targetPath);
+    } catch (error) {
+      if (error?.code === "ENOENT") {
+        continue;
+      }
+      throw error;
+    }
+
+    if (stat.isSymbolicLink() || !stat.isFile()) {
+      issues.push({
+        code: "invalid-package-bin-target",
+        severity: "error",
+        message: `Package bin ${name} must be a non-symlink regular file: ${target}`,
+      });
       continue;
     }
-    const stat = fs.statSync(targetPath);
+
+    const realPackageRoot = fs.realpathSync(packageRootPath);
+    const realTargetPath = fs.realpathSync(targetPath);
+    if (!isContainedPath(path.join(realPackageRoot, "dist"), realTargetPath)) {
+      issues.push({
+        code: "unsafe-package-bin-target",
+        severity: "error",
+        message: `Package bin ${name} must resolve under dist/: ${target}`,
+      });
+      continue;
+    }
+
     if ((stat.mode & 0o111) === 0) {
       issues.push({
         code: "non-executable-package-bin",
@@ -271,6 +302,16 @@ function validateTypescriptPackageSafety({
       });
     }
   }
+}
+
+function isContainedPath(parentPath, candidatePath) {
+  const relative = path.relative(parentPath, candidatePath);
+  return (
+    relative !== "" &&
+    relative !== ".." &&
+    !relative.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relative)
+  );
 }
 
 function normalizeBins(packageJson) {

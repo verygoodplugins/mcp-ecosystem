@@ -47,3 +47,65 @@ test("Bash 5 audit prints its summary after recording errors and warnings", (t) 
   assert.match(result.stdout, /❌ Errors:\s+\d*[1-9]\d*/);
   assert.match(result.stdout, /⚠️  Warnings:\s+\d*[1-9]\d*/);
 });
+
+test("audit accepts inventory-declared package files as exact extras", (t) => {
+  if (spawnSync("jq", ["--version"], { encoding: "utf8" }).status !== 0) {
+    t.skip("jq is unavailable");
+    return;
+  }
+
+  const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-audit-"));
+  const serverRoot = path.join(fixtureRoot, "mcp-evernote");
+  const toolRoot = path.join(fixtureRoot, "bin");
+  const jqPath = spawnSync("which", ["jq"], { encoding: "utf8" }).stdout.trim();
+  fs.mkdirSync(toolRoot);
+  fs.symlinkSync(process.execPath, path.join(toolRoot, "node"));
+  fs.symlinkSync(jqPath, path.join(toolRoot, "jq"));
+  fs.mkdirSync(path.join(serverRoot, "dist"), { recursive: true });
+  fs.mkdirSync(path.join(serverRoot, "scripts"));
+  fs.writeFileSync(
+    path.join(serverRoot, "package.json"),
+    JSON.stringify({
+      name: "@verygoodplugins/mcp-evernote",
+      version: "1.0.0",
+      mcpName: "io.github.verygoodplugins/mcp-evernote",
+      publishConfig: { access: "public" },
+      files: ["dist", "scripts"],
+      bin: { "mcp-evernote": "dist/index.js" },
+      scripts: {
+        lint: "eslint .",
+        build: "tsc",
+        test: "jest",
+        "test:coverage": "jest --coverage",
+      },
+    }),
+  );
+  fs.writeFileSync(path.join(serverRoot, "package-lock.json"), "{}\n");
+  fs.writeFileSync(
+    path.join(serverRoot, "dist", "index.js"),
+    "#!/usr/bin/env node\n",
+  );
+  fs.chmodSync(path.join(serverRoot, "dist", "index.js"), 0o755);
+
+  try {
+    const result = spawnSync("/bin/bash", [auditScript, serverRoot], {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        GITHUB_ORG: "verygoodplugins",
+        PATH: `${toolRoot}:/usr/bin:/bin`,
+      },
+    });
+
+    assert.match(
+      result.stdout,
+      /✅ package files allowlist and bin targets are restricted/,
+    );
+    assert.doesNotMatch(
+      result.stdout,
+      /❌ package\.json must restrict files to dist\/docs and expose a dist\/ executable bin/,
+    );
+  } finally {
+    fs.rmSync(fixtureRoot, { recursive: true, force: true });
+  }
+});

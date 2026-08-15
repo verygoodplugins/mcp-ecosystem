@@ -24,8 +24,9 @@ usage() {
     echo ""
     echo "Arguments:"
     echo "  type        Server type: 'typescript' or 'python'"
-    echo "  name        Server name (e.g., 'freescout', 'toggl')"
-    echo "  description Optional description (default: 'MCP server for <name>')"
+    echo "  name        Lowercase server slug (e.g., 'freescout', 'my-server')"
+    echo "  description Optional description; cannot contain double quotes, backslashes, or control characters"
+    echo "  GITHUB_ORG  GitHub owner containing only letters, numbers, and interior hyphens"
     echo ""
     echo "Examples:"
     echo "  $0 typescript edd \"Easy Digital Downloads REST API integration\""
@@ -48,20 +49,49 @@ fi
 # Remove 'mcp-' prefix if provided
 SERVER_NAME="${SERVER_NAME#mcp-}"
 
-# Create output directory path (sibling to mcp-ecosystem)
-OUTPUT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)/mcp-$SERVER_NAME"
-
-if [[ -d "$OUTPUT_DIR" ]]; then
-    echo -e "${RED}❌ Directory already exists: $OUTPUT_DIR${NC}"
+if [[ ! "$SERVER_NAME" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
+    echo -e "${RED}❌ Invalid server name: $SERVER_NAME (use lowercase letters, numbers, and single hyphens)${NC}"
     exit 1
 fi
+
+if [[ ! "$DEFAULT_GITHUB_ORG" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,37}[A-Za-z0-9])?$ ]]; then
+    echo -e "${RED}❌ Invalid GitHub owner: $DEFAULT_GITHUB_ORG${NC}"
+    exit 1
+fi
+
+if [[ "$SERVER_DESC" == *\"* || "$SERVER_DESC" == *\\* || "$SERVER_DESC" =~ [[:cntrl:]] ]]; then
+    echo -e "${RED}❌ Invalid description: double quotes, backslashes, and control characters are not supported${NC}"
+    exit 1
+fi
+
+# Resolve the intended sibling parent, then require a direct child output path.
+OUTPUT_PARENT="$(cd "$SCRIPT_DIR/../.." && pwd -P)"
+OUTPUT_BASENAME="mcp-$SERVER_NAME"
+OUTPUT_DIR="$OUTPUT_PARENT/$OUTPUT_BASENAME"
+if [[ "$(dirname "$OUTPUT_DIR")" != "$OUTPUT_PARENT" || "$(basename "$OUTPUT_DIR")" != "$OUTPUT_BASENAME" ]]; then
+    echo -e "${RED}❌ Refusing output path outside the MCP server parent: $OUTPUT_DIR${NC}"
+    exit 1
+fi
+
+if [[ -e "$OUTPUT_DIR" || -L "$OUTPUT_DIR" ]]; then
+    echo -e "${RED}❌ Output already exists: $OUTPUT_DIR${NC}"
+    exit 1
+fi
+
+escape_sed_replacement() {
+    printf '%s' "$1" | sed 's/[\/&]/\\&/g'
+}
 
 # Create placeholder values
 NAME="$SERVER_NAME"
 NAME_UNDERSCORE="${SERVER_NAME//-/_}"  # Replace hyphens with underscores for Python
 NAME_CAPITALIZED="$(echo "$SERVER_NAME" | sed 's/-/ /g' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)} 1' | sed 's/ //g')"
 REPO_SLUG="$DEFAULT_GITHUB_ORG/mcp-$NAME"
-REPO_SLUG_SED="$(printf '%s' "$REPO_SLUG" | sed 's/[\/&]/\\&/g')"
+NAME_SED="$(escape_sed_replacement "$NAME")"
+NAME_CAPITALIZED_SED="$(escape_sed_replacement "$NAME_CAPITALIZED")"
+NAME_UNDERSCORE_SED="$(escape_sed_replacement "$NAME_UNDERSCORE")"
+SERVER_DESC_SED="$(escape_sed_replacement "$SERVER_DESC")"
+REPO_SLUG_SED="$(escape_sed_replacement "$REPO_SLUG")"
 
 echo -e "${BLUE}🚀 Creating MCP server: mcp-$NAME${NC}"
 echo "================================================"
@@ -81,10 +111,11 @@ process_template() {
     local dest="$2"
     
     # Replace placeholders
-    sed -e "s/{name}/$NAME/g" \
-        -e "s/{Name}/$NAME_CAPITALIZED/g" \
-        -e "s/{name_underscore}/$NAME_UNDERSCORE/g" \
-        -e "s/{description}/$SERVER_DESC/g" \
+    sed -e "s/{name}/$NAME_SED/g" \
+        -e "s/{Name}/$NAME_CAPITALIZED_SED/g" \
+        -e "s/{name_underscore}/$NAME_UNDERSCORE_SED/g" \
+        -e "s/{description}/$SERVER_DESC_SED/g" \
+        -e "s/{Brief description under 100 characters}/$SERVER_DESC_SED/g" \
         -e "s/{repo_slug}/$REPO_SLUG_SED/g" \
         "$src" > "$dest"
 }

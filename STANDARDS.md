@@ -668,7 +668,13 @@ Every managed repo should declare:
 - `securityProfile`
 - `templateTier`
 - `propagate`
-- optional `allowOverrides`, `coverageTargets`, `dependabot`, or `codeqlConfigPath`
+- optional `allowOverrides`, `allowedPackageFiles`, `coverageTargets`, `dependabot`, or `codeqlConfigPath`
+
+`allowedPackageFiles` extends the secure package-file default (`dist/**`,
+`README.md`, `LICENSE`, and `CHANGELOG.md`); it never replaces that default.
+Each inventory value must exactly match an entry in `package.json.files`.
+Wildcard characters are compared literally here rather than expanded into a
+broader policy exception.
 
 For external-service checks, choose the explicit integration profile rather
 than adding a conditional step to the stable test job. For example,

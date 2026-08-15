@@ -11,6 +11,7 @@ SERVER_PATH="${1:-.}"
 ERRORS=0
 WARNINGS=0
 SERVER_PROFILE_JSON=""
+ALLOWED_PACKAGE_FILES_JSON="[]"
 DEFAULT_GITHUB_ORG="${GITHUB_ORG:-verygoodplugins}"
 
 resolve_repo_slug() {
@@ -64,6 +65,10 @@ fi
 
 if command -v node >/dev/null 2>&1; then
     SERVER_PROFILE_JSON="$(node "$SCRIPT_DIR/describe-server.mjs" "$REPO_NAME" 2>/dev/null || true)"
+fi
+
+if [[ -n "$SERVER_PROFILE_JSON" && -x "$(command -v jq 2>/dev/null)" ]]; then
+    ALLOWED_PACKAGE_FILES_JSON="$(jq -c '.server.allowedPackageFiles // []' <<<"$SERVER_PROFILE_JSON")"
 fi
 
 PACKAGE_PATH=""
@@ -319,10 +324,41 @@ if [[ "$SERVER_TYPE" == "typescript" ]]; then
     fi
     
     # Check files array exists
-    if node --input-type=module -e 'import fs from "node:fs"; import path from "node:path"; const pkgPath = process.argv[1]; const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8")); const root = path.dirname(pkgPath); const allowed = new Set(["dist", "dist/", "README.md", "LICENSE", "CHANGELOG.md"]); const files = pkg.files; const bins = typeof pkg.bin === "string" ? [pkg.bin] : Object.values(pkg.bin ?? {}); const validBin = (target) => typeof target === "string" && target.startsWith("dist/") && !target.includes("..") && (!fs.existsSync(path.join(root, target)) || (fs.statSync(path.join(root, target)).mode & 0o111) !== 0); const valid = Array.isArray(files) && files.length > 0 && files.every((file) => allowed.has(file)) && files.some((file) => file === "dist" || file === "dist/") && bins.length > 0 && bins.every(validBin); process.exit(valid ? 0 : 1);' "$PACKAGE_ROOT/package.json" 2>/dev/null; then
+    if node --input-type=module -e '
+        import fs from "node:fs";
+        import path from "node:path";
+
+        const [pkgPath, allowedExtrasJson] = process.argv.slice(1);
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
+        const root = path.dirname(pkgPath);
+        const allowed = new Set([
+          "dist",
+          "dist/",
+          "README.md",
+          "LICENSE",
+          "CHANGELOG.md",
+          ...JSON.parse(allowedExtrasJson),
+        ]);
+        const files = pkg.files;
+        const bins = typeof pkg.bin === "string" ? [pkg.bin] : Object.values(pkg.bin ?? {});
+        const validBin = (target) =>
+          typeof target === "string" &&
+          target.startsWith("dist/") &&
+          !target.includes("..") &&
+          (!fs.existsSync(path.join(root, target)) ||
+            (fs.statSync(path.join(root, target)).mode & 0o111) !== 0);
+        const valid =
+          Array.isArray(files) &&
+          files.length > 0 &&
+          files.every((file) => allowed.has(file)) &&
+          files.some((file) => file === "dist" || file === "dist/") &&
+          bins.length > 0 &&
+          bins.every(validBin);
+        process.exit(valid ? 0 : 1);
+      ' "$PACKAGE_ROOT/package.json" "$ALLOWED_PACKAGE_FILES_JSON" 2>/dev/null; then
         echo "✅ package files allowlist and bin targets are restricted"
     else
-        echo "❌ package.json must restrict files to dist/docs and expose a dist/ executable bin"
+        echo "❌ package.json must use secure or inventory-approved files and expose a dist/ executable bin"
         ((ERRORS += 1))
     fi
 
