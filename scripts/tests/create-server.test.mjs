@@ -125,6 +125,10 @@ test("keeps Python runtime tool names dynamic after template rendering", () => {
     );
     assert.match(serverSource, /raise ValueError\(f"Unknown tool: \{tool_name\}"\)/);
     assert.doesNotMatch(serverSource, /Unknown tool: weather/);
+    assert.match(
+      serverSource,
+      /await server\.run\(read_stream, write_stream, server\.create_initialization_options\(\)\)/,
+    );
   } finally {
     fs.rmSync(fixtureRoot, { recursive: true, force: true });
   }

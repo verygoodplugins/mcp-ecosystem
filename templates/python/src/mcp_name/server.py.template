@@ -61,9 +61,7 @@ async def call_tool(tool_name: str, arguments: dict[str, Any]) -> list[TextConte
 async def run_server():
     """Run the MCP server."""
     async with stdio_server() as (read_stream, write_stream):
-        await server.run(
-            read_stream, write_stream, server.create_initialization_options()
-        )
+        await server.run(read_stream, write_stream, server.create_initialization_options())
 
 
 def main():
