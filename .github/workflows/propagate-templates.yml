@@ -57,26 +57,30 @@ jobs:
 
       - name: Propagate templates
         env:
-          GH_TOKEN: ${{ secrets.VGP_TEMPLATE_SYNC_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          VGP_TEMPLATE_SYNC_TOKEN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == false && secrets.VGP_TEMPLATE_SYNC_TOKEN || '' }}
+          INPUT_EVENT_NAME: ${{ github.event_name }}
           INPUT_SERVER: ${{ inputs.server }}
           INPUT_DRY_RUN: ${{ inputs.dry_run }}
         run: |
-          if [[ -z "${GH_TOKEN}" ]]; then
-            echo "Missing VGP_TEMPLATE_SYNC_TOKEN secret"
-            exit 1
-          fi
-
-          gh auth setup-git
-
           ARGS=()
 
           if [[ -n "${INPUT_SERVER}" ]]; then
             ARGS+=(--server "${INPUT_SERVER}")
           fi
 
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${INPUT_DRY_RUN}" == "true" ]]; then
+          if [[ "${INPUT_EVENT_NAME}" == "workflow_dispatch" && "${INPUT_DRY_RUN}" == "false" ]]; then
+            if [[ -z "${VGP_TEMPLATE_SYNC_TOKEN}" ]]; then
+              echo "Missing VGP_TEMPLATE_SYNC_TOKEN secret for write propagation"
+              exit 1
+            fi
+            GH_TOKEN="${VGP_TEMPLATE_SYNC_TOKEN}"
+          else
             ARGS+=(--dry-run)
           fi
+
+          export GH_TOKEN
+          gh auth setup-git
 
           chmod +x scripts/apply-templates.sh scripts/propagate-templates.sh
           ./scripts/propagate-templates.sh "${ARGS[@]}"
