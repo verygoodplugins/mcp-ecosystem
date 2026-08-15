@@ -124,7 +124,7 @@ for file in "${REQUIRED_FILES[@]}"; do
         echo "✅ $file exists"
     else
         echo "❌ $file missing"
-        ((ERRORS++))
+        ((ERRORS += 1))
     fi
 done
 
@@ -133,7 +133,7 @@ if [[ -f "$REPO_ROOT/AGENTS.md" ]]; then
     echo "✅ AGENTS.md exists"
 else
     echo "⚠️  AGENTS.md missing (recommended)"
-    ((WARNINGS++))
+    ((WARNINGS += 1))
 fi
 
 if [[ -f "$REPO_ROOT/CLAUDE.md" ]]; then
@@ -149,7 +149,7 @@ if [[ -f "$REPO_ROOT/server.json" ]]; then
         echo "✅ server.json uses 2025-12-11 schema"
     else
         echo "❌ server.json must use 2025-12-11 schema"
-        ((ERRORS++))
+        ((ERRORS += 1))
     fi
     
     # Check repository.source field
@@ -157,7 +157,7 @@ if [[ -f "$REPO_ROOT/server.json" ]]; then
         echo "✅ server.json has repository.source: \"github\""
     elif grep -q '"source"' "$REPO_ROOT/server.json"; then
         echo "⚠️  server.json repository.source should be \"github\""
-        ((WARNINGS++))
+        ((WARNINGS += 1))
     fi
     
     # Check transport is object format
@@ -165,11 +165,11 @@ if [[ -f "$REPO_ROOT/server.json" ]]; then
         echo "✅ server.json has correct transport format"
     elif grep -q '"transport"' "$REPO_ROOT/server.json"; then
         echo "⚠️  server.json transport should be { \"type\": \"stdio\" }"
-        ((WARNINGS++))
+        ((WARNINGS += 1))
     fi
 else
     echo "⚠️  server.json missing (needed for MCP Registry)"
-    ((WARNINGS++))
+    ((WARNINGS += 1))
 fi
 
 echo ""
@@ -191,7 +191,7 @@ for workflow in "${WORKFLOWS[@]}"; do
         echo "✅ .github/workflows/$workflow exists"
     else
         echo "❌ .github/workflows/$workflow missing"
-        ((ERRORS++))
+        ((ERRORS += 1))
     fi
 done
 
@@ -199,7 +199,7 @@ if [[ -f "$REPO_ROOT/.github/dependabot.yml" ]]; then
     echo "✅ .github/dependabot.yml exists"
 else
     echo "⚠️  .github/dependabot.yml missing"
-    ((WARNINGS++))
+    ((WARNINGS += 1))
 fi
 
 # GitHub hygiene files (governance + community standards)
@@ -216,7 +216,7 @@ for relpath in "${HYGIENE_FILES[@]}"; do
         echo "✅ $relpath exists"
     else
         echo "⚠️  $relpath missing"
-        ((WARNINGS++))
+        ((WARNINGS += 1))
     fi
 done
 
@@ -227,7 +227,7 @@ if [[ -n "$SERVER_PROFILE_JSON" && -x "$(command -v jq 2>/dev/null)" ]]; then
             echo "✅ $required_file exists"
         else
             echo "❌ $required_file missing"
-            ((ERRORS++))
+            ((ERRORS += 1))
         fi
     done < <(jq -r '.profiles.release.requiredFiles[]?' <<<"$SERVER_PROFILE_JSON")
 fi
@@ -244,35 +244,35 @@ if command -v gh >/dev/null 2>&1; then
             echo "✅ allow_auto_merge enabled"
         else
             echo "⚠️  allow_auto_merge disabled"
-            ((WARNINGS++))
+            ((WARNINGS += 1))
         fi
 
         if [[ "$(gh api "repos/$REPO_SLUG" --jq '.delete_branch_on_merge')" == "true" ]]; then
             echo "✅ delete_branch_on_merge enabled"
         else
             echo "⚠️  delete_branch_on_merge disabled"
-            ((WARNINGS++))
+            ((WARNINGS += 1))
         fi
 
         if [[ "$(gh api "repos/$REPO_SLUG" --jq '.allow_squash_merge')" == "true" ]]; then
             echo "✅ allow_squash_merge enabled"
         else
             echo "⚠️  allow_squash_merge disabled"
-            ((WARNINGS++))
+            ((WARNINGS += 1))
         fi
 
         if gh api "repos/$REPO_SLUG/vulnerability-alerts" >/dev/null 2>&1; then
             echo "✅ vulnerability alerts enabled"
         else
             echo "⚠️  vulnerability alerts disabled"
-            ((WARNINGS++))
+            ((WARNINGS += 1))
         fi
 
         if gh api "repos/$REPO_SLUG/automated-security-fixes" >/dev/null 2>&1; then
             echo "✅ automated security fixes enabled"
         else
             echo "⚠️  automated security fixes disabled"
-            ((WARNINGS++))
+            ((WARNINGS += 1))
         fi
     else
         echo "ℹ️  Skipping GitHub repo checks (repo not reachable via gh)"
@@ -291,14 +291,14 @@ if [[ "$SERVER_TYPE" == "typescript" ]]; then
         echo "✅ mcpName configured"
     else
         echo "❌ mcpName missing in package.json"
-        ((ERRORS++))
+        ((ERRORS += 1))
     fi
 
     if grep -q '"publishConfig"' "$PACKAGE_ROOT/package.json"; then
         echo "✅ publishConfig exists"
     else
         echo "⚠️  publishConfig missing"
-        ((WARNINGS++))
+        ((WARNINGS += 1))
     fi
 
     if [[ -n "$SERVER_PROFILE_JSON" && -x "$(command -v jq 2>/dev/null)" ]]; then
@@ -308,14 +308,14 @@ if [[ "$SERVER_TYPE" == "typescript" ]]; then
                 echo "✅ package.json script '$required_script' exists"
             else
                 echo "❌ package.json script '$required_script' missing"
-                ((ERRORS++))
+                ((ERRORS += 1))
             fi
         done < <(jq -r '.profiles.ci.requiredScripts[]?' <<<"$SERVER_PROFILE_JSON")
     elif grep -q '"test"' "$PACKAGE_ROOT/package.json"; then
         echo "✅ test script exists"
     else
         echo "❌ test script missing"
-        ((ERRORS++))
+        ((ERRORS += 1))
     fi
     
     # Check files array exists
@@ -323,36 +323,36 @@ if [[ "$SERVER_TYPE" == "typescript" ]]; then
         echo "✅ package files allowlist and bin targets are restricted"
     else
         echo "❌ package.json must restrict files to dist/docs and expose a dist/ executable bin"
-        ((ERRORS++))
+        ((ERRORS += 1))
     fi
 
     if command -v npm >/dev/null 2>&1; then
         PACK_JSON="$(cd "$PACKAGE_ROOT" && npm pack --dry-run --json --ignore-scripts 2>/dev/null || true)"
         if [[ -z "$PACK_JSON" ]]; then
             echo "⚠️  Could not inspect npm package contents with npm pack --dry-run"
-            ((WARNINGS++))
+            ((WARNINGS += 1))
         elif printf '%s' "$PACK_JSON" | node --input-type=module -e 'import fs from "node:fs"; const data = JSON.parse(fs.readFileSync(0, "utf8")); const files = data[0]?.files?.map((entry) => entry.path) ?? []; const unsafe = files.filter((file) => /(^|\/)(\.env(?:\.|$)|node_modules|\.git|\.github|coverage|tests?|src)(\/|$)/.test(file)); if (unsafe.length) { console.error(unsafe.join("\n")); process.exit(1); }' 2>/dev/null; then
             echo "✅ npm pack dry-run contains no source, test, credential, or VCS files"
         else
             echo "❌ npm pack dry-run would include prohibited package content"
-            ((ERRORS++))
+            ((ERRORS += 1))
         fi
     else
         echo "⚠️  npm not found; skipping npm package content inspection"
-        ((WARNINGS++))
+        ((WARNINGS += 1))
     fi
 
     # Check package-lock.json exists and is not gitignored (required for npm ci)
     if [[ -f "$PACKAGE_ROOT/package-lock.json" ]]; then
         if [[ -f "$PACKAGE_ROOT/.gitignore" ]] && grep -q '^package-lock.json$' "$PACKAGE_ROOT/.gitignore"; then
             echo "❌ package-lock.json is gitignored (CI will fail)"
-            ((ERRORS++))
+            ((ERRORS += 1))
         else
             echo "✅ package-lock.json exists and tracked"
         fi
     else
         echo "❌ package-lock.json missing (required for npm ci)"
-        ((ERRORS++))
+        ((ERRORS += 1))
     fi
     
     # Check MCP SDK version
@@ -366,19 +366,19 @@ if [[ "$SERVER_TYPE" == "typescript" ]]; then
                 echo "✅ MCP server package version $SDK_VERSION (>= 2.0.0)"
             else
                 echo "⚠️  MCP server package version $SDK_VERSION (recommend >= 2.0.0)"
-                ((WARNINGS++))
+                ((WARNINGS += 1))
             fi
         else
             echo "⚠️  Could not parse MCP SDK version"
-            ((WARNINGS++))
+            ((WARNINGS += 1))
         fi
     else
         if grep -q '@modelcontextprotocol/sdk' "$PACKAGE_ROOT/package.json"; then
             echo "⚠️  Legacy @modelcontextprotocol/sdk detected; migrate code and dependencies to @modelcontextprotocol/server v2 together"
-            ((WARNINGS++))
+            ((WARNINGS += 1))
         else
             echo "❌ No MCP server package found in dependencies"
-            ((ERRORS++))
+            ((ERRORS += 1))
         fi
     fi
 else
@@ -387,14 +387,14 @@ else
         echo "✅ [tool.mcp] configured"
     else
         echo "❌ [tool.mcp] missing in pyproject.toml"
-        ((ERRORS++))
+        ((ERRORS += 1))
     fi
 
     if grep -q '\[tool.pytest' "$PACKAGE_ROOT/pyproject.toml"; then
         echo "✅ pytest configured"
     else
         echo "⚠️  pytest configuration missing"
-        ((WARNINGS++))
+        ((WARNINGS += 1))
     fi
     
     # Check ruff configuration
@@ -402,7 +402,7 @@ else
         echo "✅ ruff configured"
     else
         echo "⚠️  ruff configuration missing"
-        ((WARNINGS++))
+        ((WARNINGS += 1))
     fi
     
     # Check Python version requirement
@@ -410,10 +410,10 @@ else
         echo "✅ requires-python >= 3.11"
     elif grep -q 'requires-python' "$PACKAGE_ROOT/pyproject.toml"; then
         echo "⚠️  requires-python should be >= 3.11"
-        ((WARNINGS++))
+        ((WARNINGS += 1))
     else
         echo "⚠️  requires-python not specified"
-        ((WARNINGS++))
+        ((WARNINGS += 1))
     fi
 fi
 
@@ -431,7 +431,7 @@ if [[ "$SERVER_TYPE" == "typescript" ]]; then
             echo "✅ tsconfig.json has strict: true"
         else
             echo "⚠️  tsconfig.json should have strict: true"
-            ((WARNINGS++))
+            ((WARNINGS += 1))
         fi
         
         # Check for ES2022 target
@@ -439,11 +439,11 @@ if [[ "$SERVER_TYPE" == "typescript" ]]; then
             echo "✅ tsconfig.json targets ES2022"
         else
             echo "⚠️  tsconfig.json should target ES2022"
-            ((WARNINGS++))
+            ((WARNINGS += 1))
         fi
     else
         echo "❌ tsconfig.json missing"
-        ((ERRORS++))
+        ((ERRORS += 1))
     fi
     
     # Check ESLint config (flat config)
@@ -453,10 +453,10 @@ if [[ "$SERVER_TYPE" == "typescript" ]]; then
         echo "✅ eslint.config.js exists (flat config)"
     elif [[ -f "$PACKAGE_ROOT/.eslintrc.json" || -f "$PACKAGE_ROOT/.eslintrc.js" || -f "$PACKAGE_ROOT/.eslintrc" ]]; then
         echo "⚠️  Legacy ESLint config found (migrate to flat config eslint.config.mjs)"
-        ((WARNINGS++))
+        ((WARNINGS += 1))
     else
         echo "⚠️  No ESLint config found"
-        ((WARNINGS++))
+        ((WARNINGS += 1))
     fi
     
     # Check Prettier config
@@ -464,7 +464,7 @@ if [[ "$SERVER_TYPE" == "typescript" ]]; then
         echo "✅ Prettier config exists"
     else
         echo "⚠️  No Prettier config found"
-        ((WARNINGS++))
+        ((WARNINGS += 1))
     fi
     
     # Check vitest config
@@ -472,7 +472,7 @@ if [[ "$SERVER_TYPE" == "typescript" ]]; then
         echo "✅ Vitest config exists"
     else
         echo "⚠️  No Vitest config found (tests may use defaults)"
-        ((WARNINGS++))
+        ((WARNINGS += 1))
     fi
 fi
 
@@ -486,7 +486,7 @@ if [[ -d "$PACKAGE_ROOT/src" ]]; then
         if grep -rE 'console\.(log|info|debug)\s*\(' "$PACKAGE_ROOT/src" > /dev/null 2>&1; then
             echo "❌ Found console.log/info/debug in src/ (writes to stdout and can break MCP stdio)"
             grep -rEn 'console\.(log|info|debug)\s*\(' "$PACKAGE_ROOT/src" | head -5
-            ((ERRORS++))
+            ((ERRORS += 1))
         else
             echo "✅ No console.log/info/debug in src/"
         fi
@@ -494,7 +494,7 @@ if [[ -d "$PACKAGE_ROOT/src" ]]; then
         if grep -rE 'process\.stdout\.write\s*\(' "$PACKAGE_ROOT/src" > /dev/null 2>&1; then
             echo "❌ Found process.stdout.write in src/ (can break MCP stdio)"
             grep -rEn 'process\.stdout\.write\s*\(' "$PACKAGE_ROOT/src" | head -5
-            ((ERRORS++))
+            ((ERRORS += 1))
         else
             echo "✅ No process.stdout.write in src/"
         fi
@@ -503,7 +503,7 @@ if [[ -d "$PACKAGE_ROOT/src" ]]; then
             if grep -rE 'config\\(\\)\\s*;\\s*$' "$PACKAGE_ROOT/src" > /dev/null 2>&1; then
                 echo "⚠️  dotenv config() called without { quiet: true } (dotenv@17 may log to stdout)"
                 grep -rEn 'config\\(\\)\\s*;\\s*$' "$PACKAGE_ROOT/src" | head -5
-                ((WARNINGS++))
+                ((WARNINGS += 1))
             else
                 echo "✅ dotenv usage does not include bare config()"
             fi
@@ -513,7 +513,7 @@ if [[ -d "$PACKAGE_ROOT/src" ]]; then
         if grep -rE '\\bprint\\s*\\(' "$PACKAGE_ROOT/src" > /dev/null 2>&1; then
             echo "❌ Found print() in src/ (stdout is reserved for MCP stdio)"
             grep -rEn '\\bprint\\s*\\(' "$PACKAGE_ROOT/src" | head -5
-            ((ERRORS++))
+            ((ERRORS += 1))
         else
             echo "✅ No print() in src/"
         fi
@@ -532,7 +532,7 @@ if [[ -f "$REPO_ROOT/README.md" ]]; then
         echo "✅ README has Support section"
     else
         echo "⚠️  README missing Support section"
-        ((WARNINGS++))
+        ((WARNINGS += 1))
     fi
     
     # Check for orange heart footer
@@ -540,7 +540,7 @@ if [[ -f "$REPO_ROOT/README.md" ]]; then
         echo "✅ README has orange heart footer"
     else
         echo "⚠️  README missing orange heart (🧡) footer"
-        ((WARNINGS++))
+        ((WARNINGS += 1))
     fi
     
     # Check for VGP attribution
@@ -548,7 +548,7 @@ if [[ -f "$REPO_ROOT/README.md" ]]; then
         echo "✅ README has VGP attribution"
     else
         echo "⚠️  README missing VGP attribution"
-        ((WARNINGS++))
+        ((WARNINGS += 1))
     fi
 fi
 
@@ -561,7 +561,7 @@ if [[ -f "$REPO_ROOT/README.md" ]]; then
     if grep -E 'https://(verygoodplugins|wpfusion|automem)\.com[^[:space:]"<)]*' "$REPO_ROOT/README.md" | grep -Ev '\?[^[:space:]"<)]*utm_source=' > /dev/null 2>&1; then
         echo "⚠️  Found links without UTM tracking"
         grep -E 'https://(verygoodplugins|wpfusion|automem)\.com[^[:space:]"<)]*' "$REPO_ROOT/README.md" | grep -Ev '\?[^[:space:]"<)]*utm_source=' | head -3
-        ((WARNINGS++))
+        ((WARNINGS += 1))
     else
         echo "✅ All external links have UTM (or none found)"
     fi
@@ -575,7 +575,7 @@ echo "----------------------"
 if [[ -d "$PACKAGE_ROOT/src" ]]; then
     if grep -rE '(api_key|apikey|password|secret|token)\s*[:=]\s*["\x27][^"\x27]{8,}["\x27]' "$PACKAGE_ROOT/src" 2>/dev/null | grep -v '.env' > /dev/null; then
         echo "⚠️  Potential hardcoded secrets found"
-        ((WARNINGS++))
+        ((WARNINGS += 1))
     else
         echo "✅ No obvious hardcoded secrets"
     fi
@@ -588,7 +588,7 @@ if [[ -f "$PACKAGE_ROOT/.gitignore" ]] && grep -q '.env' "$PACKAGE_ROOT/.gitigno
     echo "✅ .env in .gitignore"
 else
     echo "⚠️  .env may not be in .gitignore"
-    ((WARNINGS++))
+    ((WARNINGS += 1))
 fi
 
 # Check CodeQL action pin.
@@ -597,7 +597,7 @@ if [[ -f "$REPO_ROOT/.github/workflows/security.yml" ]]; then
         echo "✅ CodeQL Action v4 is SHA-pinned"
     else
         echo "⚠️  CodeQL Action should use the approved SHA pin"
-        ((WARNINGS++))
+        ((WARNINGS += 1))
     fi
 fi
 
@@ -614,7 +614,7 @@ if [[ -f "$REPO_ROOT/manifest.json" ]]; then
         echo "✅ manifest_version is 0.2"
     elif grep -q '"manifest_version"' "$REPO_ROOT/manifest.json"; then
         echo "⚠️  manifest_version should be \"0.2\""
-        ((WARNINGS++))
+        ((WARNINGS += 1))
     fi
     
     # Check for user_config
@@ -622,7 +622,7 @@ if [[ -f "$REPO_ROOT/manifest.json" ]]; then
         echo "✅ user_config defined"
     else
         echo "⚠️  user_config missing (needed for configuration UI)"
-        ((WARNINGS++))
+        ((WARNINGS += 1))
     fi
     
     # Check if build script exists
@@ -630,7 +630,7 @@ if [[ -f "$REPO_ROOT/manifest.json" ]]; then
         echo "✅ build:extension script exists"
     elif [[ "$SERVER_TYPE" == "typescript" ]]; then
         echo "⚠️  build:extension script missing (add to package.json)"
-        ((WARNINGS++))
+        ((WARNINGS += 1))
     fi
     
     # Check for .mcpbignore
@@ -638,7 +638,7 @@ if [[ -f "$REPO_ROOT/manifest.json" ]]; then
         echo "✅ .mcpbignore exists (reduces bundle size)"
     else
         echo "⚠️  .mcpbignore missing (extension bundle may be large)"
-        ((WARNINGS++))
+        ((WARNINGS += 1))
     fi
 else
     echo "ℹ️  No Desktop Extension (optional for non-technical users)"
