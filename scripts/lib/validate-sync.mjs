@@ -52,6 +52,7 @@ export function validateRepositorySync({
       validateTypescriptPackageSafety({
         packageRoot,
         packageJson,
+        allowedPackageFiles: normalized.allowedPackageFiles,
         issues,
       });
     }
@@ -79,7 +80,10 @@ export function validateRepositorySync({
     }
   }
 
-  if (normalized.type === "typescript" && profiles.release.mode === "manifest") {
+  if (
+    normalized.type === "typescript" &&
+    profiles.release.mode === "manifest"
+  ) {
     validateTypescriptReleaseMetadata({
       repoRoot,
       packageJson,
@@ -195,13 +199,19 @@ export function validateRepositorySync({
   };
 }
 
-function validateTypescriptPackageSafety({ packageRoot, packageJson, issues }) {
+function validateTypescriptPackageSafety({
+  packageRoot,
+  packageJson,
+  allowedPackageFiles: allowedExtras = [],
+  issues,
+}) {
   const allowedPackageFiles = new Set([
     "dist",
     "dist/",
     "README.md",
     "LICENSE",
     "CHANGELOG.md",
+    ...allowedExtras,
   ]);
   const packageFiles = packageJson.files;
   if (!Array.isArray(packageFiles) || packageFiles.length === 0) {
@@ -265,7 +275,9 @@ function validateTypescriptPackageSafety({ packageRoot, packageJson, issues }) {
 
 function normalizeBins(packageJson) {
   if (typeof packageJson.bin === "string") {
-    const packageName = String(packageJson.name ?? "").split("/").at(-1);
+    const packageName = String(packageJson.name ?? "")
+      .split("/")
+      .at(-1);
     return packageName ? { [packageName]: packageJson.bin } : {};
   }
   if (!packageJson.bin || typeof packageJson.bin !== "object") {
@@ -297,7 +309,8 @@ function validateTypescriptReleaseMetadata({ repoRoot, packageJson, issues }) {
     issues.push({
       code: "invalid-release-manifest-config",
       severity: "error",
-      message: "release-please-config.json must configure the root Node package.",
+      message:
+        "release-please-config.json must configure the root Node package.",
     });
   }
 
@@ -309,11 +322,15 @@ function validateTypescriptReleaseMetadata({ repoRoot, packageJson, issues }) {
   );
   if (serverJson && packageVersion) {
     const registryVersion = serverJson.packages?.[0]?.version;
-    if (serverJson.version !== packageVersion || registryVersion !== packageVersion) {
+    if (
+      serverJson.version !== packageVersion ||
+      registryVersion !== packageVersion
+    ) {
       issues.push({
         code: "registry-version-drift",
         severity: "error",
-        message: "server.json versions must match package.json for Release Please sync.",
+        message:
+          "server.json versions must match package.json for Release Please sync.",
       });
     }
   }

@@ -281,6 +281,44 @@ test("rejects package content and executable targets outside the approved dist a
   );
 });
 
+test("allows only inventory-declared package-file extras without weakening bin safety", () => {
+  const repoRoot = makeTempRepo({
+    "package.json": JSON.stringify({
+      name: "@verygoodplugins/mcp-evernote",
+      version: "1.0.0",
+      files: ["dist", "scripts", "server.json", "MIGRATION.md"],
+      bin: { "mcp-evernote": "src/index.ts" },
+      scripts: { lint: "eslint .", build: "tsc", test: "jest" },
+    }),
+  });
+
+  const result = validateRepositorySync({
+    repoRoot,
+    server: {
+      name: "mcp-evernote",
+      type: "typescript",
+      packageLayout: "root",
+      packagePath: ".",
+      ciProfile: "ts-jest",
+      releaseProfile: "release-please-simple",
+      securityProfile: "strict",
+      templateTier: "compatible",
+      propagate: true,
+      allowedPackageFiles: ["scripts", "server.json", "MIGRATION.md"],
+    },
+    profiles: {
+      ci: { id: "ts-jest", requiredScripts: ["lint", "build", "test"] },
+      release: { id: "release-please-simple", requiredFiles: [] },
+    },
+  });
+
+  assert.equal(result.ok, false);
+  assert.deepEqual(
+    result.issues.map((issue) => issue.code),
+    ["unsafe-package-bin-target"],
+  );
+});
+
 test("fails preflight when go hybrid repo is missing bridge path or version script", () => {
   const repoRoot = makeTempRepo({
     "whatsapp-mcp-server/pyproject.toml":

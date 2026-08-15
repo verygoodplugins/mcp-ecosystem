@@ -11,6 +11,11 @@ import {
   syncPythonBaseline,
   syncTypescriptBaseline,
 } from "../lib/sync-template-baseline-core.mjs";
+import {
+  buildManagedBaseline,
+  getServerConfig,
+  resolveServerProfiles,
+} from "../lib/ecosystem-config.mjs";
 
 function makeTempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "mcp-ecosystem-sync-"));
@@ -104,6 +109,41 @@ test("typescript baseline sync does not lower a stricter engines.node floor", ()
 
   assert.equal(updated.engines.node, ">=25.0.0");
   assert.equal(report.changed, false);
+});
+
+test("Jest and smoke inventory profiles do not rewrite compiler or linter packages", () => {
+  const templatePackageJson = {
+    engines: { node: ">=24.0.0" },
+    dependencies: {},
+    devDependencies: {
+      "@eslint/js": "^10.0.1",
+      eslint: "^10.8.1",
+      typescript: "^6.0.3",
+      "typescript-eslint": "^8.67.0",
+      vitest: "^4.1.10",
+    },
+  };
+
+  for (const name of ["mcp-evernote", "mcp-local-wp", "mcp-edd"]) {
+    const server = getServerConfig(name);
+    const baseline = buildManagedBaseline(
+      server,
+      resolveServerProfiles(server),
+      templatePackageJson,
+    );
+    assert.deepEqual(baseline.devDependencies, {}, name);
+  }
+
+  const toggl = getServerConfig("mcp-toggl");
+  const vitestBaseline = buildManagedBaseline(
+    toggl,
+    resolveServerProfiles(toggl),
+    templatePackageJson,
+  );
+  assert.deepEqual(
+    vitestBaseline.devDependencies,
+    templatePackageJson.devDependencies,
+  );
 });
 
 test("python baseline sync updates managed dependencies via parsed toml", () => {

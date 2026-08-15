@@ -46,6 +46,7 @@ export function normalizeServerConfig(server) {
     templateTier: server.templateTier ?? "compatible",
     propagate: server.propagate ?? true,
     allowOverrides: server.allowOverrides ?? [],
+    allowedPackageFiles: server.allowedPackageFiles ?? [],
     coverageTargets:
       server.coverageTargets ?? inferCoverageTargets(server, packagePath),
     dependabot: server.dependabot ?? {
@@ -296,8 +297,11 @@ const HYGIENE_FILES = [
 ];
 
 function renderHygieneFiles(server) {
-  const githubUrl = server.github ?? `https://github.com/verygoodplugins/${server.name}`;
-  const repoSlug = githubUrl.replace(/^https?:\/\/github\.com\//, "").replace(/\/$/, "");
+  const githubUrl =
+    server.github ?? `https://github.com/verygoodplugins/${server.name}`;
+  const repoSlug = githubUrl
+    .replace(/^https?:\/\/github\.com\//, "")
+    .replace(/\/$/, "");
   const files = {};
   for (const relativePath of HYGIENE_FILES) {
     const templatePath = path.join(
@@ -378,7 +382,9 @@ function renderTypescriptIntegrationJob(server, ciProfile) {
   }
 
   const env = renderWorkflowEnv(server.integrationTestSecrets ?? []);
-  const continueOnError = ciProfile.integrationContinueOnError ? "true" : "false";
+  const continueOnError = ciProfile.integrationContinueOnError
+    ? "true"
+    : "false";
 
   return `
 
@@ -758,7 +764,8 @@ function renderReleaseFiles(server, profiles) {
     [workflowPath]: renderReleaseWorkflow(server, profiles),
   };
 
-  for (const extraWorkflowPath of profiles.release.additionalWorkflowFiles ?? []) {
+  for (const extraWorkflowPath of profiles.release.additionalWorkflowFiles ??
+    []) {
     files[extraWorkflowPath] = renderAdditionalReleaseWorkflow(
       server,
       profiles.release,
@@ -770,10 +777,7 @@ function renderReleaseFiles(server, profiles) {
 }
 
 function renderTypescriptReleaseMetadataFiles(targetRoot, server, profiles) {
-  if (
-    server.type !== "typescript" ||
-    profiles.release.mode !== "manifest"
-  ) {
+  if (server.type !== "typescript" || profiles.release.mode !== "manifest") {
     return {};
   }
 
@@ -1605,9 +1609,7 @@ function renderWorkflowEnv(secretNames) {
   }
 
   const envLines = secretNames
-    .map(
-      (secretName) => `      ${secretName}: \${{ secrets.${secretName} }}`,
-    )
+    .map((secretName) => `      ${secretName}: \${{ secrets.${secretName} }}`)
     .join("\n");
 
   return `
@@ -1665,10 +1667,9 @@ export default tseslint.config(
 }
 
 function renderVitestConfig(server, profiles) {
-  const coverageExcludes =
-    profiles.ci.integrationTestCommand
-      ? `['node_modules/', 'dist/', 'tests/', 'tests/integration/**', '*.config.*']`
-      : `['node_modules/', 'dist/', 'tests/', '*.config.*']`;
+  const coverageExcludes = profiles.ci.integrationTestCommand
+    ? `['node_modules/', 'dist/', 'tests/', 'tests/integration/**', '*.config.*']`
+    : `['node_modules/', 'dist/', 'tests/', '*.config.*']`;
 
   return `import { defineConfig } from 'vitest/config';
 
