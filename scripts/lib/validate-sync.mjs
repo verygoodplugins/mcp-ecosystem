@@ -52,6 +52,7 @@ export function validateRepositorySync({
       validateTypescriptPackageSafety({
         packageRoot,
         packageJson,
+        allowedPackageFiles: normalized.allowedPackageFiles,
         issues,
       });
     }
@@ -79,7 +80,10 @@ export function validateRepositorySync({
     }
   }
 
-  if (normalized.type === "typescript" && profiles.release.mode === "manifest") {
+  if (
+    normalized.type === "typescript" &&
+    profiles.release.mode === "manifest"
+  ) {
     validateTypescriptReleaseMetadata({
       repoRoot,
       packageJson,
@@ -195,13 +199,19 @@ export function validateRepositorySync({
   };
 }
 
-function validateTypescriptPackageSafety({ packageRoot, packageJson, issues }) {
+function validateTypescriptPackageSafety({
+  packageRoot,
+  packageJson,
+  allowedPackageFiles: allowedExtras = [],
+  issues,
+}) {
   const allowedPackageFiles = new Set([
     "dist",
     "dist/",
     "README.md",
     "LICENSE",
     "CHANGELOG.md",
+    ...allowedExtras,
   ]);
   const packageFiles = packageJson.files;
   if (!Array.isArray(packageFiles) || packageFiles.length === 0) {
@@ -239,7 +249,13 @@ function validateTypescriptPackageSafety({ packageRoot, packageJson, issues }) {
   }
 
   for (const [name, target] of Object.entries(bins)) {
-    if (!target.startsWith("dist/") || target.includes("..")) {
+    const packageRootPath = path.resolve(packageRoot);
+    const distRootPath = path.join(packageRootPath, "dist");
+    const targetPath = path.resolve(packageRootPath, target);
+    if (
+      !target.startsWith("dist/") ||
+      !isContainedPath(distRootPath, targetPath)
+    ) {
       issues.push({
         code: "unsafe-package-bin-target",
         severity: "error",
@@ -248,11 +264,36 @@ function validateTypescriptPackageSafety({ packageRoot, packageJson, issues }) {
       continue;
     }
 
-    const targetPath = path.join(packageRoot, target);
-    if (!fs.existsSync(targetPath)) {
+    let stat;
+    try {
+      stat = fs.lstatSync(targetPath);
+    } catch (error) {
+      if (error?.code === "ENOENT") {
+        continue;
+      }
+      throw error;
+    }
+
+    if (stat.isSymbolicLink() || !stat.isFile()) {
+      issues.push({
+        code: "invalid-package-bin-target",
+        severity: "error",
+        message: `Package bin ${name} must be a non-symlink regular file: ${target}`,
+      });
       continue;
     }
-    const stat = fs.statSync(targetPath);
+
+    const realPackageRoot = fs.realpathSync(packageRootPath);
+    const realTargetPath = fs.realpathSync(targetPath);
+    if (!isContainedPath(path.join(realPackageRoot, "dist"), realTargetPath)) {
+      issues.push({
+        code: "unsafe-package-bin-target",
+        severity: "error",
+        message: `Package bin ${name} must resolve under dist/: ${target}`,
+      });
+      continue;
+    }
+
     if ((stat.mode & 0o111) === 0) {
       issues.push({
         code: "non-executable-package-bin",
@@ -263,9 +304,21 @@ function validateTypescriptPackageSafety({ packageRoot, packageJson, issues }) {
   }
 }
 
+function isContainedPath(parentPath, candidatePath) {
+  const relative = path.relative(parentPath, candidatePath);
+  return (
+    relative !== "" &&
+    relative !== ".." &&
+    !relative.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relative)
+  );
+}
+
 function normalizeBins(packageJson) {
   if (typeof packageJson.bin === "string") {
-    const packageName = String(packageJson.name ?? "").split("/").at(-1);
+    const packageName = String(packageJson.name ?? "")
+      .split("/")
+      .at(-1);
     return packageName ? { [packageName]: packageJson.bin } : {};
   }
   if (!packageJson.bin || typeof packageJson.bin !== "object") {
@@ -297,7 +350,8 @@ function validateTypescriptReleaseMetadata({ repoRoot, packageJson, issues }) {
     issues.push({
       code: "invalid-release-manifest-config",
       severity: "error",
-      message: "release-please-config.json must configure the root Node package.",
+      message:
+        "release-please-config.json must configure the root Node package.",
     });
   }
 
@@ -309,11 +363,15 @@ function validateTypescriptReleaseMetadata({ repoRoot, packageJson, issues }) {
   );
   if (serverJson && packageVersion) {
     const registryVersion = serverJson.packages?.[0]?.version;
-    if (serverJson.version !== packageVersion || registryVersion !== packageVersion) {
+    if (
+      serverJson.version !== packageVersion ||
+      registryVersion !== packageVersion
+    ) {
       issues.push({
         code: "registry-version-drift",
         severity: "error",
-        message: "server.json versions must match package.json for Release Please sync.",
+        message:
+          "server.json versions must match package.json for Release Please sync.",
       });
     }
   }

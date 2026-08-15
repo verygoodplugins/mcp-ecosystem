@@ -6,7 +6,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-INVENTORY_FILE="$ROOT_DIR/server-inventory.json"
+INVENTORY_FILE="${INVENTORY_FILE:-$ROOT_DIR/server-inventory.json}"
 DRY_RUN=false
 SERVER_FILTER=""
 BASE_BRANCH="main"
@@ -46,6 +46,33 @@ repo_slug_from_url() {
     echo "$1" | sed -E 's#https://github.com/##; s#/$##'
 }
 
+RESULT_NAMES=()
+RESULT_STATUSES=()
+RESULT_DETAILS=()
+HAS_BLOCKED_REPOSITORY=false
+
+record_result() {
+    RESULT_NAMES+=("$1")
+    RESULT_STATUSES+=("$2")
+    RESULT_DETAILS+=("$3")
+    if [[ "$2" == "blocked" ]]; then
+        HAS_BLOCKED_REPOSITORY=true
+    fi
+}
+
+print_result_table() {
+    echo "Propagation results:"
+    printf "%-24s %-16s %s\n" "Repository" "Status" "Details"
+    printf "%-24s %-16s %s\n" "----------" "------" "-------"
+
+    for index in "${!RESULT_NAMES[@]}"; do
+        printf "%-24s %-16s %s\n" \
+            "${RESULT_NAMES[$index]}" \
+            "${RESULT_STATUSES[$index]}" \
+            "${RESULT_DETAILS[$index]}"
+    done
+}
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --server)
@@ -67,7 +94,6 @@ require_command git
 require_command gh
 require_command jq
 require_command node
-require_command npm
 
 TEMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TEMP_DIR"' EXIT
@@ -104,7 +130,8 @@ for SERVER_JSON in "${SERVERS[@]}"; do
     SERVER_URL="$(jq -r '.github' <<<"$SERVER_JSON")"
     RAW_SERVER_TYPE="$(jq -r '.type' <<<"$SERVER_JSON")"
     if ! SERVER_TYPE="$(normalize_server_type "$RAW_SERVER_TYPE")"; then
-        echo "⚠️  Skipping $SERVER_NAME: unsupported type '$RAW_SERVER_TYPE'"
+        echo "⚠️  Blocking $SERVER_NAME: unsupported type '$RAW_SERVER_TYPE'"
+        record_result "$SERVER_NAME" "blocked" "unsupported type: $RAW_SERVER_TYPE"
         continue
     fi
 
@@ -113,15 +140,33 @@ for SERVER_JSON in "${SERVERS[@]}"; do
     REPORT_PATH="$TEMP_DIR/${SERVER_NAME}-sync-report.json"
 
     echo "==> $SERVER_NAME ($SERVER_TYPE)"
-    gh repo clone "$REPO_SLUG" "$REPO_DIR" -- --quiet
+    if ! CLONE_OUTPUT="$(gh repo clone "$REPO_SLUG" "$REPO_DIR" -- --quiet 2>&1)"; then
+        echo "   Clone failed; skipping PR"
+        echo "$CLONE_OUTPUT" | sed 's/^/   ! /'
+        echo ""
+        record_result "$SERVER_NAME" "blocked" "clone failed"
+        continue
+    fi
 
-    git -C "$REPO_DIR" checkout "$BASE_BRANCH" >/dev/null 2>&1
-    git -C "$REPO_DIR" pull --ff-only origin "$BASE_BRANCH" >/dev/null 2>&1
+    if ! git -C "$REPO_DIR" checkout "$BASE_BRANCH" >/dev/null 2>&1; then
+        echo "   Checkout failed; skipping PR"
+        echo ""
+        record_result "$SERVER_NAME" "blocked" "checkout failed"
+        continue
+    fi
+
+    if ! git -C "$REPO_DIR" pull --ff-only origin "$BASE_BRANCH" >/dev/null 2>&1; then
+        echo "   Pull failed; skipping PR"
+        echo ""
+        record_result "$SERVER_NAME" "blocked" "pull failed"
+        continue
+    fi
 
     if ! RENDER_OUTPUT="$(node "$SCRIPT_DIR/render-managed-files.mjs" "$SERVER_NAME" "$REPO_DIR" 2>&1)"; then
         echo "   Render failed; skipping PR"
         echo "$RENDER_OUTPUT" | sed 's/^/   ! /'
         echo ""
+        record_result "$SERVER_NAME" "blocked" "render failed"
         continue
     fi
 
@@ -129,6 +174,7 @@ for SERVER_JSON in "${SERVERS[@]}"; do
         echo "   Baseline sync failed; skipping PR"
         echo "$SYNC_OUTPUT" | sed 's/^/   ! /'
         echo ""
+        record_result "$SERVER_NAME" "blocked" "baseline sync failed"
         continue
     fi
 
@@ -136,45 +182,80 @@ for SERVER_JSON in "${SERVERS[@]}"; do
         echo "   Preflight failed; skipping PR"
         echo "$VALIDATION_OUTPUT" | sed 's/^/   ! /'
         echo ""
+        record_result "$SERVER_NAME" "blocked" "preflight failed"
         continue
     fi
 
-    # Regenerate lockfile if package.json changed
-    if [[ "$SERVER_TYPE" == "typescript" && -n "$(git -C "$REPO_DIR" diff --name-only -- package.json)" ]]; then
-        echo "   Regenerating package-lock.json..."
-        (cd "$REPO_DIR" && npm install --package-lock-only --ignore-scripts) >/dev/null
+    if ! WORKTREE_STATUS="$(git -C "$REPO_DIR" status --short 2>&1)"; then
+        echo "   Status check failed; skipping PR"
+        echo "$WORKTREE_STATUS" | sed 's/^/   ! /'
+        echo ""
+        record_result "$SERVER_NAME" "blocked" "status check failed"
+        continue
     fi
 
-    if [[ -z "$(git -C "$REPO_DIR" status --short)" ]]; then
+    if [[ -z "$WORKTREE_STATUS" ]]; then
         echo "   No template drift"
         echo ""
+        record_result "$SERVER_NAME" "clean" "no template drift"
         continue
     fi
 
     echo "   Changed files:"
-    git -C "$REPO_DIR" status --short | sed 's/^/   - /'
+    echo "$WORKTREE_STATUS" | sed 's/^/   - /'
 
     if [[ "$DRY_RUN" == true ]]; then
         echo ""
+        record_result "$SERVER_NAME" "changes ready" "dry-run"
         continue
     fi
 
-    git -C "$REPO_DIR" checkout -B "$SYNC_BRANCH" >/dev/null 2>&1
-    git -C "$REPO_DIR" add .
-    git -C "$REPO_DIR" \
+    if ! git -C "$REPO_DIR" checkout -B "$SYNC_BRANCH" >/dev/null 2>&1; then
+        echo "   Branch setup failed; skipping PR"
+        echo ""
+        record_result "$SERVER_NAME" "blocked" "branch setup failed"
+        continue
+    fi
+
+    if ! git -C "$REPO_DIR" add .; then
+        echo "   Staging failed; skipping PR"
+        echo ""
+        record_result "$SERVER_NAME" "blocked" "staging failed"
+        continue
+    fi
+
+    if ! git -C "$REPO_DIR" \
         -c user.name="github-actions[bot]" \
         -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-        commit -m "chore(template): sync from mcp-ecosystem" >/dev/null
-    git -C "$REPO_DIR" push --force-with-lease --set-upstream origin "$SYNC_BRANCH" >/dev/null
+        commit -m "chore(template): sync from mcp-ecosystem" >/dev/null; then
+        echo "   Commit failed; skipping PR"
+        echo ""
+        record_result "$SERVER_NAME" "blocked" "commit failed"
+        continue
+    fi
 
-    EXISTING_PR="$(gh pr list --repo "$REPO_SLUG" --head "$SYNC_BRANCH" --state open --json number --jq '.[0].number // empty')"
+    if ! git -C "$REPO_DIR" push --force-with-lease --set-upstream origin "$SYNC_BRANCH" >/dev/null; then
+        echo "   Push failed; skipping PR"
+        echo ""
+        record_result "$SERVER_NAME" "blocked" "push failed"
+        continue
+    fi
+
+    if ! EXISTING_PR="$(gh pr list --repo "$REPO_SLUG" --head "$SYNC_BRANCH" --state open --json number --jq '.[0].number // empty')"; then
+        echo "   PR lookup failed; skipping PR"
+        echo ""
+        record_result "$SERVER_NAME" "blocked" "PR lookup failed"
+        continue
+    fi
+
     if [[ -n "$EXISTING_PR" ]]; then
         echo "   Updated existing PR #$EXISTING_PR"
         echo ""
+        record_result "$SERVER_NAME" "PR updated" "#$EXISTING_PR"
         continue
     fi
 
-    gh pr create \
+    if ! gh pr create \
         --repo "$REPO_SLUG" \
         --base "$BASE_BRANCH" \
         --head "$SYNC_BRANCH" \
@@ -190,13 +271,25 @@ Sync shared workflow/config/template baselines from \`verygoodplugins/mcp-ecosys
 
 This PR is generated from the ecosystem source of truth to reduce per-repo Dependabot drift.
 EOF
-)" >/dev/null
+)" >/dev/null; then
+        echo "   PR creation failed"
+        echo ""
+        record_result "$SERVER_NAME" "blocked" "PR creation failed"
+        continue
+    fi
 
     echo "   Opened PR in $REPO_SLUG"
     echo ""
+    record_result "$SERVER_NAME" "PR opened" "$REPO_SLUG"
 done
 
 if [[ -n "$SERVER_FILTER" && "$MATCHED_SERVER" != true ]]; then
     echo "❌ Unknown server: $SERVER_FILTER"
+    record_result "$SERVER_FILTER" "blocked" "unknown server"
+fi
+
+print_result_table
+
+if [[ "$HAS_BLOCKED_REPOSITORY" == true ]]; then
     exit 1
 fi

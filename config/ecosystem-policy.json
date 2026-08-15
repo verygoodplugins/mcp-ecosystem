@@ -70,14 +70,32 @@
       "requiredScripts": ["lint", "build", "test"],
       "managedBaseline": {
         "dependencies": [],
-        "devDependencies": [
-          "@eslint/js",
-          "eslint-config-prettier",
-          "prettier",
-          "tsx",
-          "typescript",
-          "typescript-eslint"
-        ]
+        "devDependencies": []
+      },
+      "nodeVersions": ["24"],
+      "testCommand": "npm test"
+    },
+    "ts-jest-coverage": {
+      "id": "ts-jest-coverage",
+      "language": "typescript",
+      "managedFeatures": ["ciWorkflow"],
+      "requiredScripts": ["lint", "build", "test", "test:coverage"],
+      "managedBaseline": {
+        "dependencies": [],
+        "devDependencies": []
+      },
+      "nodeVersions": ["24"],
+      "testCommand": "npm test",
+      "coverageCommand": "npm run test:coverage"
+    },
+    "ts-node-smoke": {
+      "id": "ts-node-smoke",
+      "language": "typescript",
+      "managedFeatures": ["ciWorkflow"],
+      "requiredScripts": ["lint", "build", "test"],
+      "managedBaseline": {
+        "dependencies": [],
+        "devDependencies": []
       },
       "nodeVersions": ["24"],
       "testCommand": "npm test"
@@ -89,14 +107,7 @@
       "requiredScripts": ["lint", "build", "test", "test:integration"],
       "managedBaseline": {
         "dependencies": [],
-        "devDependencies": [
-          "@eslint/js",
-          "eslint-config-prettier",
-          "prettier",
-          "tsx",
-          "typescript",
-          "typescript-eslint"
-        ]
+        "devDependencies": []
       },
       "nodeVersions": ["24"],
       "testCommand": "npm test",

@@ -7,7 +7,7 @@
 #
 # PyPI Trusted Publishing:
 #   No API tokens needed! Configure at:
-#   https://pypi.org/manage/project/{package-name}/settings/publishing/
+#   https://pypi.org/manage/account/publishing/
 #   Add this repository as a trusted publisher.
 
 name: Release

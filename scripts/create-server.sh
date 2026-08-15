@@ -24,8 +24,9 @@ usage() {
     echo ""
     echo "Arguments:"
     echo "  type        Server type: 'typescript' or 'python'"
-    echo "  name        Server name (e.g., 'freescout', 'toggl')"
-    echo "  description Optional description (default: 'MCP server for <name>')"
+    echo "  name        Lowercase server slug (e.g., 'freescout', 'my-server')"
+    echo "  description Optional description; cannot contain double quotes, backslashes, or control characters"
+    echo "  GITHUB_ORG  GitHub owner containing only letters, numbers, and interior hyphens"
     echo ""
     echo "Examples:"
     echo "  $0 typescript edd \"Easy Digital Downloads REST API integration\""
@@ -48,18 +49,49 @@ fi
 # Remove 'mcp-' prefix if provided
 SERVER_NAME="${SERVER_NAME#mcp-}"
 
-# Create output directory path (sibling to mcp-ecosystem)
-OUTPUT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)/mcp-$SERVER_NAME"
-
-if [[ -d "$OUTPUT_DIR" ]]; then
-    echo -e "${RED}❌ Directory already exists: $OUTPUT_DIR${NC}"
+if [[ ! "$SERVER_NAME" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
+    echo -e "${RED}❌ Invalid server name: $SERVER_NAME (use lowercase letters, numbers, and single hyphens)${NC}"
     exit 1
 fi
+
+if [[ ! "$DEFAULT_GITHUB_ORG" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,37}[A-Za-z0-9])?$ ]]; then
+    echo -e "${RED}❌ Invalid GitHub owner: $DEFAULT_GITHUB_ORG${NC}"
+    exit 1
+fi
+
+if [[ "$SERVER_DESC" == *\"* || "$SERVER_DESC" == *\\* || "$SERVER_DESC" =~ [[:cntrl:]] ]]; then
+    echo -e "${RED}❌ Invalid description: double quotes, backslashes, and control characters are not supported${NC}"
+    exit 1
+fi
+
+# Resolve the intended sibling parent, then require a direct child output path.
+OUTPUT_PARENT="$(cd "$SCRIPT_DIR/../.." && pwd -P)"
+OUTPUT_BASENAME="mcp-$SERVER_NAME"
+OUTPUT_DIR="$OUTPUT_PARENT/$OUTPUT_BASENAME"
+if [[ "$(dirname "$OUTPUT_DIR")" != "$OUTPUT_PARENT" || "$(basename "$OUTPUT_DIR")" != "$OUTPUT_BASENAME" ]]; then
+    echo -e "${RED}❌ Refusing output path outside the MCP server parent: $OUTPUT_DIR${NC}"
+    exit 1
+fi
+
+if [[ -e "$OUTPUT_DIR" || -L "$OUTPUT_DIR" ]]; then
+    echo -e "${RED}❌ Output already exists: $OUTPUT_DIR${NC}"
+    exit 1
+fi
+
+escape_sed_replacement() {
+    printf '%s' "$1" | sed 's/[\/&]/\\&/g'
+}
 
 # Create placeholder values
 NAME="$SERVER_NAME"
 NAME_UNDERSCORE="${SERVER_NAME//-/_}"  # Replace hyphens with underscores for Python
 NAME_CAPITALIZED="$(echo "$SERVER_NAME" | sed 's/-/ /g' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)} 1' | sed 's/ //g')"
+REPO_SLUG="$DEFAULT_GITHUB_ORG/mcp-$NAME"
+NAME_SED="$(escape_sed_replacement "$NAME")"
+NAME_CAPITALIZED_SED="$(escape_sed_replacement "$NAME_CAPITALIZED")"
+NAME_UNDERSCORE_SED="$(escape_sed_replacement "$NAME_UNDERSCORE")"
+SERVER_DESC_SED="$(escape_sed_replacement "$SERVER_DESC")"
+REPO_SLUG_SED="$(escape_sed_replacement "$REPO_SLUG")"
 
 echo -e "${BLUE}🚀 Creating MCP server: mcp-$NAME${NC}"
 echo "================================================"
@@ -79,10 +111,12 @@ process_template() {
     local dest="$2"
     
     # Replace placeholders
-    sed -e "s/{name}/$NAME/g" \
-        -e "s/{Name}/$NAME_CAPITALIZED/g" \
-        -e "s/{name_underscore}/$NAME_UNDERSCORE/g" \
-        -e "s/{description}/$SERVER_DESC/g" \
+    sed -e "s/{name}/$NAME_SED/g" \
+        -e "s/{Name}/$NAME_CAPITALIZED_SED/g" \
+        -e "s/{name_underscore}/$NAME_UNDERSCORE_SED/g" \
+        -e "s/{description}/$SERVER_DESC_SED/g" \
+        -e "s/{Brief description under 100 characters}/$SERVER_DESC_SED/g" \
+        -e "s/{repo_slug}/$REPO_SLUG_SED/g" \
         "$src" > "$dest"
 }
 
@@ -92,9 +126,29 @@ copy_file() {
     cp "$src" "$dest"
 }
 
+copy_github_templates() {
+    local template_type="$1"
+    local github_template_dir="$TEMPLATE_DIR/$template_type/.github"
+
+    mkdir -p "$OUTPUT_DIR/.github/workflows" "$OUTPUT_DIR/.github/ISSUE_TEMPLATE"
+
+    for file in "$github_template_dir/workflows"/*.yml; do
+        copy_file "$file" "$OUTPUT_DIR/.github/workflows/$(basename "$file")"
+    done
+
+    process_template "$github_template_dir/CODEOWNERS" "$OUTPUT_DIR/.github/CODEOWNERS"
+    process_template "$github_template_dir/SECURITY.md" "$OUTPUT_DIR/.github/SECURITY.md"
+    process_template "$github_template_dir/PULL_REQUEST_TEMPLATE.md" "$OUTPUT_DIR/.github/PULL_REQUEST_TEMPLATE.md"
+    process_template "$github_template_dir/dependabot.yml" "$OUTPUT_DIR/.github/dependabot.yml"
+
+    for file in "$github_template_dir/ISSUE_TEMPLATE"/*; do
+        process_template "$file" "$OUTPUT_DIR/.github/ISSUE_TEMPLATE/$(basename "$file")"
+    done
+}
+
 if [[ "$SERVER_TYPE" == "typescript" ]]; then
     # TypeScript structure
-    mkdir -p "$OUTPUT_DIR/src" "$OUTPUT_DIR/tests" "$OUTPUT_DIR/.github/workflows"
+    mkdir -p "$OUTPUT_DIR/src" "$OUTPUT_DIR/tests"
     
     echo -e "${YELLOW}📋 Processing TypeScript templates...${NC}"
     
@@ -115,11 +169,7 @@ if [[ "$SERVER_TYPE" == "typescript" ]]; then
     copy_file "$TEMPLATE_DIR/typescript/eslint.config.mjs" "$OUTPUT_DIR/eslint.config.mjs"
     copy_file "$TEMPLATE_DIR/typescript/vitest.config.ts" "$OUTPUT_DIR/vitest.config.ts"
     
-    # Copy workflow files
-    for file in "$TEMPLATE_DIR/typescript/.github/workflows"/*.yml; do
-        copy_file "$file" "$OUTPUT_DIR/.github/workflows/$(basename "$file")"
-    done
-    copy_file "$TEMPLATE_DIR/typescript/.github/dependabot.yml" "$OUTPUT_DIR/.github/dependabot.yml"
+    copy_github_templates "typescript"
     
     # Keep release metadata as tracked templates so create and apply agree.
     copy_file "$TEMPLATE_DIR/typescript/release-please-config.json.template" "$OUTPUT_DIR/release-please-config.json"
@@ -134,7 +184,7 @@ if [[ "$SERVER_TYPE" == "typescript" ]]; then
     
 else
     # Python structure
-    mkdir -p "$OUTPUT_DIR/src/mcp_$NAME_UNDERSCORE" "$OUTPUT_DIR/tests" "$OUTPUT_DIR/.github/workflows"
+    mkdir -p "$OUTPUT_DIR/src/mcp_$NAME_UNDERSCORE" "$OUTPUT_DIR/tests"
     
     echo -e "${YELLOW}📋 Processing Python templates...${NC}"
     
@@ -152,11 +202,7 @@ else
     # Copy static files
     copy_file "$TEMPLATE_DIR/python/.gitignore" "$OUTPUT_DIR/.gitignore"
     
-    # Copy workflow files
-    for file in "$TEMPLATE_DIR/python/.github/workflows"/*.yml; do
-        copy_file "$file" "$OUTPUT_DIR/.github/workflows/$(basename "$file")"
-    done
-    copy_file "$TEMPLATE_DIR/python/.github/dependabot.yml" "$OUTPUT_DIR/.github/dependabot.yml"
+    copy_github_templates "python"
     
     # Create empty CHANGELOG.md
     echo "# Changelog" > "$OUTPUT_DIR/CHANGELOG.md"

@@ -281,6 +281,117 @@ test("rejects package content and executable targets outside the approved dist a
   );
 });
 
+test("allows only inventory-declared package-file extras without weakening bin safety", () => {
+  const repoRoot = makeTempRepo({
+    "package.json": JSON.stringify({
+      name: "@verygoodplugins/mcp-evernote",
+      version: "1.0.0",
+      files: ["dist", "scripts", "server.json", "MIGRATION.md"],
+      bin: { "mcp-evernote": "src/index.ts" },
+      scripts: { lint: "eslint .", build: "tsc", test: "jest" },
+    }),
+  });
+
+  const result = validateRepositorySync({
+    repoRoot,
+    server: {
+      name: "mcp-evernote",
+      type: "typescript",
+      packageLayout: "root",
+      packagePath: ".",
+      ciProfile: "ts-jest",
+      releaseProfile: "release-please-simple",
+      securityProfile: "strict",
+      templateTier: "compatible",
+      propagate: true,
+      allowedPackageFiles: ["scripts", "server.json", "MIGRATION.md"],
+    },
+    profiles: {
+      ci: { id: "ts-jest", requiredScripts: ["lint", "build", "test"] },
+      release: { id: "release-please-simple", requiredFiles: [] },
+    },
+  });
+
+  assert.equal(result.ok, false);
+  assert.deepEqual(
+    result.issues.map((issue) => issue.code),
+    ["unsafe-package-bin-target"],
+  );
+});
+
+function validateBinFixture(repoRoot) {
+  return validateRepositorySync({
+    repoRoot,
+    server: {
+      name: "mcp-example",
+      type: "typescript",
+      packageLayout: "root",
+      packagePath: ".",
+      ciProfile: "ts-jest",
+      releaseProfile: "release-please-simple",
+      securityProfile: "strict",
+      templateTier: "compatible",
+      propagate: true,
+    },
+    profiles: {
+      ci: { id: "ts-jest", requiredScripts: ["lint", "build", "test"] },
+      release: { id: "release-please-simple", requiredFiles: [] },
+    },
+  });
+}
+
+function makeBinRepo() {
+  return makeTempRepo({
+    "package.json": JSON.stringify({
+      name: "@verygoodplugins/mcp-example",
+      version: "1.0.0",
+      files: ["dist"],
+      bin: { "mcp-example": "dist/cli.js" },
+      scripts: { lint: "eslint .", build: "tsc", test: "jest" },
+    }),
+  });
+}
+
+test("rejects a package bin target that is an executable directory", () => {
+  const repoRoot = makeBinRepo();
+  fs.mkdirSync(path.join(repoRoot, "dist", "cli.js"), { recursive: true });
+  fs.chmodSync(path.join(repoRoot, "dist", "cli.js"), 0o755);
+
+  const result = validateBinFixture(repoRoot);
+
+  assert.equal(result.ok, false);
+  assert.deepEqual(
+    result.issues.map((issue) => issue.code),
+    ["invalid-package-bin-target"],
+  );
+});
+
+for (const symlinkTarget of ["real.js", "../../outside.js", "missing.js"]) {
+  test(`rejects a package bin symlink to ${symlinkTarget}`, () => {
+    const repoRoot = makeBinRepo();
+    fs.mkdirSync(path.join(repoRoot, "dist"), { recursive: true });
+    fs.writeFileSync(
+      path.join(repoRoot, "dist", "real.js"),
+      "#!/usr/bin/env node\n",
+    );
+    fs.chmodSync(path.join(repoRoot, "dist", "real.js"), 0o755);
+    fs.writeFileSync(
+      path.join(path.dirname(repoRoot), "outside.js"),
+      "#!/usr/bin/env node\n",
+    );
+    fs.chmodSync(path.join(path.dirname(repoRoot), "outside.js"), 0o755);
+    fs.symlinkSync(symlinkTarget, path.join(repoRoot, "dist", "cli.js"));
+
+    const result = validateBinFixture(repoRoot);
+
+    assert.equal(result.ok, false);
+    assert.deepEqual(
+      result.issues.map((issue) => issue.code),
+      ["invalid-package-bin-target"],
+    );
+  });
+}
+
 test("fails preflight when go hybrid repo is missing bridge path or version script", () => {
   const repoRoot = makeTempRepo({
     "whatsapp-mcp-server/pyproject.toml":

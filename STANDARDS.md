@@ -24,9 +24,11 @@ This scaffolds a complete project with all required files, configs, and workflow
 
 ### Requirements
 
-- **Node.js:** ≥22.0.0
+- **Node.js:** ≥24.0.0
 - **TypeScript:** ES2022 target, strict mode
-- **MCP SDK:** @modelcontextprotocol/sdk ^1.25.1
+- **MCP SDK:** `@modelcontextprotocol/server` ^2.0.0 with Zod schemas
+- **Linting:** ESLint 10 flat config
+- **Testing:** Vitest 4 (including `npm run test:coverage` when coverage is needed)
 - **Package Manager:** npm
 - **Module System:** ES modules (`"type": "module"`)
 
@@ -36,8 +38,8 @@ This scaffolds a complete project with all required files, configs, and workflow
 server-name/
 ├── src/
 │   ├── index.ts           # MCP server entry point
-│   ├── types.ts           # TypeScript interfaces
-│   ├── *-client.ts        # API client wrapper
+│   ├── types.ts           # Optional TypeScript interfaces
+│   ├── *-client.ts        # Optional API client wrapper
 │   └── cli/               # CLI commands (optional)
 ├── dist/                  # Compiled output
 ├── tests/                 # Test files
@@ -73,6 +75,7 @@ server-name/
 {
   "name": "@verygoodplugins/mcp-{name}",
   "version": "1.0.0",
+  "description": "{description}",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -87,15 +90,44 @@ server-name/
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "test": "vitest run",
+    "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src/",
-    "format": "prettier --write src/",
+    "format": "prettier --write src/ tests/",
     "prepublishOnly": "npm run build && npm run test"
   },
   "publishConfig": {
     "access": "public"
   },
-  "files": ["dist/", "README.md", "LICENSE"]
+  "files": ["dist/", "README.md", "LICENSE", "CHANGELOG.md"],
+  "keywords": ["mcp", "model-context-protocol", "ai", "claude", "{name}"],
+  "author": "Very Good Plugins <support@verygoodplugins.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/verygoodplugins/mcp-{name}.git"
+  },
+  "bugs": {
+    "url": "https://github.com/verygoodplugins/mcp-{name}/issues"
+  },
+  "homepage": "https://github.com/verygoodplugins/mcp-{name}#readme",
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.0.0",
+    "dotenv": "^17.2.3",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.2.0",
+    "@vitest/coverage-v8": "^4.1.10",
+    "eslint": "^10.8.1",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.5.3",
+    "tsx": "^4.19.4",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.67.0",
+    "vitest": "^4.1.10"
+  }
 }
 ```
 
@@ -125,9 +157,9 @@ server-name/
 }
 ```
 
-### ESLint 9 Flat Config (eslint.config.mjs)
+### ESLint 10 Flat Config (eslint.config.mjs)
 
-All TypeScript servers should use ESLint 9 with flat config:
+All TypeScript servers should use ESLint 10 with flat config:
 
 ```javascript
 import eslint from "@eslint/js";
@@ -139,25 +171,19 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   prettier,
   {
-    ignores: ["dist/", "node_modules/", "coverage/"],
-  },
-  {
     files: ["src/**/*.ts"],
-    languageOptions: {
-      parserOptions: {
-        project: "./tsconfig.json",
-      },
-    },
     rules: {
       // MCP stdio servers must not write to stdout outside the protocol.
       "no-console": ["error", { allow: ["error", "warn"] }],
       "@typescript-eslint/no-unused-vars": [
         "error",
-        { argsIgnorePattern: "^_" },
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
-      "@typescript-eslint/explicit-function-return-type": "off",
       "@typescript-eslint/no-explicit-any": "warn",
     },
+  },
+  {
+    ignores: ["dist/", "node_modules/", "coverage/"],
   },
 );
 ```
@@ -166,9 +192,10 @@ export default tseslint.config(
 
 ```json
 {
-  "@eslint/js": "^9.0.0",
-  "typescript-eslint": "^8.0.0",
-  "eslint-config-prettier": "^10.0.0"
+  "@eslint/js": "^10.0.1",
+  "eslint": "^10.8.1",
+  "typescript-eslint": "^8.67.0",
+  "eslint-config-prettier": "^10.1.8"
 }
 ```
 
@@ -176,65 +203,67 @@ export default tseslint.config(
 
 ```typescript
 #!/usr/bin/env node
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
-import { config } from "dotenv";
+import { McpServer } from '@modelcontextprotocol/server';
+import { serveStdio } from '@modelcontextprotocol/server/stdio';
+import { config } from 'dotenv';
+import { z } from 'zod';
 
-// MCP stdio transport uses stdout for the protocol stream.
-// Redirect stdout console methods to stderr to avoid corrupting the stream.
-console.log = console.error;
-console.info = console.error;
-console.debug = console.error;
-
-// dotenv@17 can emit an informational runtime log mentioning `.env` to stdout.
-process.env.DOTENV_CONFIG_QUIET = "true";
+// stdout is reserved for the MCP protocol. dotenv@17 is silent when quiet.
+process.env.DOTENV_CONFIG_QUIET = 'true';
 config({ quiet: true });
 
-// Validate required environment variables
-const API_KEY = process.env.API_KEY;
-if (!API_KEY) {
-  console.error("Missing required API_KEY environment variable");
-  process.exit(1);
+function requireApiKey(): string {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    throw new Error('Missing required API_KEY environment variable');
+  }
+  return apiKey;
 }
 
-const server = new Server(
-  { name: "mcp-{name}", version: "1.0.0" },
-  { capabilities: { tools: {} } },
-);
+export function createServer(): McpServer {
+  requireApiKey();
 
-const tools = [
-  {
-    name: "tool_name",
-    description: "What this tool does",
-    inputSchema: {
-      type: "object",
-      properties: {
-        param: { type: "string", description: "Parameter description" },
-      },
-      required: ["param"],
+  const server = new McpServer({
+    name: 'mcp-{name}',
+    version: '1.0.0',
+  });
+
+  server.registerTool(
+    'example_tool',
+    {
+      description: 'Example tool - replace with your actual tools',
+      inputSchema: z.object({
+        query: z.string().min(1).describe('The query to process'),
+      }),
     },
-  },
-];
+    async ({ query }) => ({
+      content: [
+        {
+          type: 'text',
+          text: `Processed query: ${query}`,
+        },
+      ],
+    }),
+  );
 
-server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools }));
-
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-  // Handle tool calls
-});
-
-async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error("MCP server running on stdio");
+  return server;
 }
 
-main().catch(console.error);
+export function startServer(): void {
+  serveStdio(createServer, {
+    onerror: error => {
+      console.error(`mcp-{name} stdio error: ${error.message}`);
+    },
+  });
+  console.error('mcp-{name} server running on stdio');
+}
+
+startServer();
 ```
+
+The v2 starter uses `McpServer.registerTool` with Zod input schemas and the
+`serveStdio` entrypoint. Do not mix this model with legacy `Server`, request
+schema imports, or `setRequestHandler` calls from `@modelcontextprotocol/sdk`.
 
 ---
 
@@ -244,6 +273,7 @@ main().catch(console.error);
 
 - **Python:** ≥3.11
 - **Package Manager:** pip with pyproject.toml
+- **MCP SDK:** `mcp>=1.0.0`
 - **Linting:** ruff
 - **Testing:** pytest with asyncio support
 - **StdIO Logging:** never `print()` to stdout (reserved for MCP); use `logging` to stderr (e.g. `logging.basicConfig(stream=sys.stderr, level=logging.INFO)`)
@@ -256,7 +286,7 @@ server-name/
 │   └── mcp_{name}/
 │       ├── __init__.py
 │       ├── server.py      # MCP server entry point
-│       └── client.py      # API client wrapper
+│       └── client.py      # Optional API client wrapper
 ├── tests/
 │   └── test_server.py
 ├── .github/
@@ -285,23 +315,49 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "mcp-{name}"
 version = "1.0.0"
-description = "MCP server for {service}"
+description = "{description}"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.11"
+authors = [
+    {name = "Very Good Plugins", email = "support@verygoodplugins.com"}
+]
+keywords = ["mcp", "model-context-protocol", "ai", "claude", "{name}"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
 dependencies = [
-    "mcp>=0.9.0",
+    "mcp>=1.0.0",
+    "httpx>=0.27.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.1.0",
 ]
 
 [project.scripts]
-mcp-{name} = "mcp_{name}.server:main"
+mcp-{name} = "mcp_{name_underscore}.server:main"
 
 [project.urls]
 Homepage = "https://github.com/verygoodplugins/mcp-{name}"
 Repository = "https://github.com/verygoodplugins/mcp-{name}"
+Issues = "https://github.com/verygoodplugins/mcp-{name}/issues"
 
 [tool.mcp]
 name = "io.github.verygoodplugins/mcp-{name}"
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -313,6 +369,16 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.coverage.run]
+source = ["src/mcp_{name_underscore}"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+]
 ```
 
 ---
@@ -327,7 +393,7 @@ select = ["E", "F", "I", "N", "W", "UP"]
 | `LICENSE`                                     | MIT or GPL-3.0 (consistent with other VGP projects)              |
 | `AGENTS.md`                                   | Host-neutral contributor and coding-agent guidance               |
 | `CLAUDE.md`                                   | Optional compatibility entry point linking to `AGENTS.md`        |
-| `CHANGELOG.md`                                | Version history (auto-generated by release-please)               |
+| `CHANGELOG.md`                                | Version history; Release Please updates it for TypeScript releases |
 | `server.json`                                 | MCP Registry manifest                                            |
 | `.github/workflows/ci.yml`                    | Test and lint on PR                                              |
 | `.github/workflows/dependabot-auto-merge.yml` | Approve + enable auto-merge for safe Dependabot PRs              |
@@ -469,25 +535,30 @@ Example:
    - Build
    - Includes `merge_group` so required checks run inside GitHub merge queue
 
-2. **release-please.yml** (TypeScript) or **release.yml** (Python)
+2. **release-please.yml** (TypeScript)
    - Triggered on push to main
    - Creates release PR with changelog
-   - Publishes to npm/PyPI on release
-   - Uses OIDC Trusted Publishing (no npm/PyPI secrets)
-   - TypeScript releases also mirror to GitHub Packages (`npm.pkg.github.com`) via `GITHUB_TOKEN` after the npm publish completes; that job is `continue-on-error: true` so npmjs success is what defines a successful release. See [PUBLISHING.md](./PUBLISHING.md#github-packages-mirror-typescript) for consumer-side caveats.
+   - On the release tag, publishes to npm with OIDC Trusted Publishing (no npm secret)
+   - Also publishes a GitHub Packages (`npm.pkg.github.com`) mirror via `GITHUB_TOKEN`; this job is `continue-on-error: true`, so npmjs success defines a successful release. See [PUBLISHING.md](./PUBLISHING.md#github-packages-mirror-typescript) for consumer-side caveats.
+   - After npm succeeds, publishes the release to the MCP Registry with GitHub OIDC; the `mcp-registry-publish` job depends on `npm-publish`.
    - **Must use `RELEASE_PLEASE_TOKEN`** (org-level PAT) so the Release PR triggers CI workflows. PRs created by the default `GITHUB_TOKEN` don't trigger other workflows (GitHub security feature), which blocks required status checks.
    - Uses manifest mode (`release-please-config.json` + `.release-please-manifest.json`)
 
-3. **pr-title.yml** - Enforces conventional PR titles on PRs targeting `main`
+3. **release.yml** (Python)
+   - Triggered only when a `v*` tag is pushed
+   - Builds the package, publishes it to PyPI with OIDC Trusted Publishing, and creates a GitHub Release with generated notes
+   - Does not use Release Please or a release manifest; update the Python version and changelog before creating the tag
+
+4. **pr-title.yml** - Enforces conventional PR titles on PRs targeting `main`
    - Required because squash merges use the PR title as the commit title on `main`
-   - Release-please parses those merged commit titles to build changelogs and version bumps
+   - Required for TypeScript repositories because Release Please parses merged commit titles to build changelogs and version bumps
    - Should be required via branch protection or an organization ruleset
 
-4. **security.yml** - Weekly security scans
+5. **security.yml** - Weekly security scans
    - CodeQL analysis
    - Dependency vulnerability scanning
 
-5. **dependabot-auto-merge.yml** - Approves safe Dependabot PRs and enables GitHub auto-merge
+6. **dependabot-auto-merge.yml** - Approves safe Dependabot PRs and enables GitHub auto-merge
    - Runs on `pull_request_target` with a caller-side `github.event.pull_request.user.login == 'dependabot[bot]'` guard
    - Explicitly scopes permissions to `contents: write` and `pull-requests: write`
    - Uses CI + org rulesets as the safety gate
@@ -597,7 +668,13 @@ Every managed repo should declare:
 - `securityProfile`
 - `templateTier`
 - `propagate`
-- optional `allowOverrides`, `coverageTargets`, `dependabot`, or `codeqlConfigPath`
+- optional `allowOverrides`, `allowedPackageFiles`, `coverageTargets`, `dependabot`, or `codeqlConfigPath`
+
+`allowedPackageFiles` extends the secure package-file default (`dist/**`,
+`README.md`, `LICENSE`, and `CHANGELOG.md`); it never replaces that default.
+Each inventory value must exactly match an entry in `package.json.files`.
+Wildcard characters are compared literally here rather than expanded into a
+broader policy exception.
 
 For external-service checks, choose the explicit integration profile rather
 than adding a conditional step to the stable test job. For example,
@@ -761,11 +838,6 @@ https://verygoodplugins.com/?utm_source=mcp-registry
 ---
 
 ## Testing Requirements
-
-### Minimum Coverage
-
-- **Initial:** ≥50% code coverage
-- **Target:** ≥80% code coverage
 
 ### Test Categories
 
