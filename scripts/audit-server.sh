@@ -646,7 +646,7 @@ echo "----------------------"
 
 # Check for potential secrets
 if [[ -d "$PACKAGE_ROOT/src" ]]; then
-    if grep -rE '(api_key|apikey|password|secret|token)\s*[:=]\s*["\x27][^"\x27]{8,}["\x27]' "$PACKAGE_ROOT/src" 2>/dev/null | grep -vE '\.(test|spec)\.[[:alnum:]]+:' | grep -v '.env' > /dev/null; then
+    if grep -rE --exclude='*.test.*' --exclude='*.spec.*' '(api_key|apikey|password|secret|token)\s*[:=]\s*["\x27][^"\x27]{8,}["\x27]' "$PACKAGE_ROOT/src" 2>/dev/null | grep -v '.env' > /dev/null; then
         echo "⚠️  Potential hardcoded secrets found"
         ((WARNINGS += 1))
     else
