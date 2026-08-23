@@ -2,3 +2,6 @@
 .mcpregistry_github_token
 .mcpregistry_*
 /.cursor
+
+# Local agent-planning artifacts are not repository documentation.
+docs/superpowers/
