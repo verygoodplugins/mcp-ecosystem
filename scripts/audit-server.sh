@@ -562,6 +562,43 @@ echo ""
 echo "📖 Checking README structure..."
 echo "--------------------------------"
 
+if [[ "$SERVER_TYPE" == "typescript" && -d "$PACKAGE_ROOT/src" ]] && grep -rE 'registerTool[[:space:]]*\(' "$PACKAGE_ROOT/src" > /dev/null 2>&1; then
+    echo ""
+    echo "🧩 Checking MCP v2 tool contracts..."
+    echo "------------------------------------"
+
+    if grep -rE 'outputSchema[[:space:]]*:' "$PACKAGE_ROOT/src" > /dev/null 2>&1 && grep -rE 'structuredContent[[:space:]]*:' "$PACKAGE_ROOT/src" > /dev/null 2>&1; then
+        echo "✅ Tool registrations include outputSchema and structuredContent"
+    else
+        echo "⚠️  MCP v2 tools should declare outputSchema and return structuredContent with matching JSON text"
+        ((WARNINGS++))
+    fi
+
+    if grep -rE 'isError[[:space:]]*:[[:space:]]*true' "$PACKAGE_ROOT/src" > /dev/null 2>&1; then
+        echo "✅ Expected tool failures use MCP isError results"
+    else
+        echo "⚠️  Tool handlers should return isError: true for expected input, configuration, and upstream failures"
+        ((WARNINGS++))
+    fi
+
+    if grep -rE 'readOnlyHint[[:space:]]*:' "$PACKAGE_ROOT/src" > /dev/null 2>&1; then
+        echo "✅ Tool annotations declare read-only behavior"
+    else
+        echo "⚠️  Tool annotations should explicitly declare readOnlyHint and destructiveHint"
+        ((WARNINGS++))
+    fi
+fi
+
+if [[ "$SERVER_TYPE" == "typescript" && -f "$REPO_ROOT/.github/workflows/$RELEASE_WORKFLOW" && -f "$REPO_ROOT/server.json" ]]; then
+    RELEASE_PATH="$REPO_ROOT/.github/workflows/$RELEASE_WORKFLOW"
+    if grep -q 'mcp-registry-publish:' "$RELEASE_PATH" && grep -q 'needs: \[release-please, npm-publish\]' "$RELEASE_PATH" && grep -q 'mcp-publisher login github-oidc' "$RELEASE_PATH"; then
+        echo "✅ MCP Registry publication is coupled to successful npm publication"
+    else
+        echo "⚠️  Release workflow should publish the registry manifest after npm publication using GitHub OIDC"
+        ((WARNINGS++))
+    fi
+fi
+
 if [[ -f "$REPO_ROOT/README.md" ]]; then
     # Check for Support section
     if grep -qi '^##.*support' "$REPO_ROOT/README.md"; then

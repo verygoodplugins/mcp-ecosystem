@@ -109,3 +109,37 @@ test("audit accepts inventory-declared package files as exact extras", (t) => {
     fs.rmSync(fixtureRoot, { recursive: true, force: true });
   }
 });
+
+test("audit identifies missing MCP v2 structured-result safeguards", () => {
+  const serverRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-audit-v2-"));
+  fs.mkdirSync(path.join(serverRoot, "src"));
+  fs.mkdirSync(path.join(serverRoot, ".github", "workflows"), { recursive: true });
+  fs.writeFileSync(
+    path.join(serverRoot, "package.json"),
+    JSON.stringify({
+      name: "@example/mcp-unsafe",
+      version: "1.0.0",
+      mcpName: "io.github.example/mcp-unsafe",
+      dependencies: { "@modelcontextprotocol/server": "^2.0.0" },
+      files: ["dist", "README.md", "LICENSE", "CHANGELOG.md"],
+      bin: { "mcp-unsafe": "dist/index.js" },
+      scripts: { test: "node --test" },
+    }),
+  );
+  fs.writeFileSync(path.join(serverRoot, "src", "index.ts"), "server.registerTool('unsafe', {}, async () => ({ content: [] }));\n");
+  fs.writeFileSync(path.join(serverRoot, "README.md"), "# Unsafe\n");
+  fs.writeFileSync(path.join(serverRoot, "LICENSE"), "MIT\n");
+  fs.writeFileSync(path.join(serverRoot, "CHANGELOG.md"), "# Changelog\n");
+  fs.writeFileSync(path.join(serverRoot, "server.json"), JSON.stringify({ packages: [{ transport: { type: "stdio" } }] }));
+  fs.writeFileSync(path.join(serverRoot, ".github", "workflows", "release-please.yml"), "name: release\n");
+
+  try {
+    const result = spawnSync("/bin/bash", [auditScript, serverRoot], { encoding: "utf8" });
+    assert.match(result.stdout, /declare outputSchema and return structuredContent/);
+    assert.match(result.stdout, /isError: true/);
+    assert.match(result.stdout, /readOnlyHint and destructiveHint/);
+    assert.match(result.stdout, /registry manifest after npm publication/);
+  } finally {
+    fs.rmSync(serverRoot, { recursive: true, force: true });
+  }
+});

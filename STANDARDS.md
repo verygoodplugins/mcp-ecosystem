@@ -212,17 +212,7 @@ import { z } from 'zod';
 process.env.DOTENV_CONFIG_QUIET = 'true';
 config({ quiet: true });
 
-function requireApiKey(): string {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    throw new Error('Missing required API_KEY environment variable');
-  }
-  return apiKey;
-}
-
 export function createServer(): McpServer {
-  requireApiKey();
-
   const server = new McpServer({
     name: 'mcp-{name}',
     version: '1.0.0',
@@ -231,19 +221,30 @@ export function createServer(): McpServer {
   server.registerTool(
     'example_tool',
     {
+      title: 'Example read-only tool',
       description: 'Example tool - replace with your actual tools',
       inputSchema: z.object({
         query: z.string().min(1).describe('The query to process'),
       }),
+      outputSchema: z.object({ result: z.string() }),
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async ({ query }) => ({
-      content: [
-        {
-          type: 'text',
-          text: `Processed query: ${query}`,
-        },
-      ],
-    }),
+    async ({ query }) => {
+      try {
+        // Validate credentials lazily in the client or tool handler so
+        // tools/list remains usable before a host supplies secrets.
+        const output = { result: `Processed query: ${query}` };
+        return {
+          content: [{ type: 'text', text: JSON.stringify(output) }],
+          structuredContent: output,
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text', text: error instanceof Error ? error.message : 'Tool request failed.' }],
+          isError: true,
+        };
+      }
+    },
   );
 
   return server;
@@ -264,6 +265,11 @@ startServer();
 The v2 starter uses `McpServer.registerTool` with Zod input schemas and the
 `serveStdio` entrypoint. Do not mix this model with legacy `Server`, request
 schema imports, or `setRequestHandler` calls from `@modelcontextprotocol/sdk`.
+
+Validate external credentials only in the client or tool handler. Startup must
+still be able to serve `tools/list`, so hosts can inspect configuration without
+secrets. For discovery tools, project upstream records into an intentional safe
+summary instead of returning account, member, token, or configuration metadata.
 
 ---
 
@@ -872,75 +878,49 @@ async def test_tool_handler():
 
 ## Tool Schema Best Practices
 
-### Handling External API Data
+Every v2 tool must have a Zod input schema, an output schema, a human title,
+and accurate annotations. Successful results must include both
+`structuredContent` and a JSON text block containing the same object. Expected
+input, configuration, or upstream failures must return text plus
+`isError: true`.
 
-When tools interact with external APIs, response data may have optional or undefined fields. Avoid strict `outputSchema` definitions that cause validation errors when APIs return incomplete data.
-
-**Problem:**
+External APIs are not a reason to omit output schemas. Define the stable
+envelope and use `z.unknown()` only for genuinely provider-shaped payloads:
 
 ```typescript
-// This causes "expected X, received undefined" errors
-outputSchema: {
-  type: 'object',
-  properties: {
-    id: { type: 'number' },
-    email: { type: 'string' },  // API sometimes doesn't return this
-    metadata: { type: 'object' }  // API sometimes returns null
+const outputSchema = z.object({
+  accountId: z.string(),
+  data: z.unknown(),
+});
+
+server.registerTool(
+  'get_external_data',
+  {
+    title: 'Get external data',
+    inputSchema: z.object({ accountId: z.string().min(1) }),
+    outputSchema,
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
   },
-  required: ['id', 'email', 'metadata']
-}
-```
-
-**Solutions:**
-
-1. **Omit outputSchema entirely** for tools returning unpredictable external data:
-
-```typescript
-// Let the response pass through without validation
-{
-  name: 'get_external_data',
-  description: 'Fetches data from external API',
-  inputSchema: { /* validated inputs */ }
-  // No outputSchema - response is unvalidated
-}
-```
-
-2. **Use loose schemas** with optional fields:
-
-```typescript
-outputSchema: {
-  type: 'object',
-  properties: {
-    id: { type: 'number' },
-    email: { type: ['string', 'null'] },
-    metadata: {}  // Accept any type
+  async ({ accountId }) => {
+    try {
+      const output = { accountId, data: await api.get(accountId) };
+      return {
+        content: [{ type: 'text', text: JSON.stringify(output) }],
+        structuredContent: output,
+      };
+    } catch (error) {
+      return {
+        content: [{ type: 'text', text: error instanceof Error ? error.message : 'Request failed.' }],
+        isError: true,
+      };
+    }
   },
-  required: ['id']  // Only require guaranteed fields
-}
+);
 ```
 
-3. **Validate and transform** in your handler before returning:
-
-```typescript
-const response = await api.getData();
-return {
-  id: response.id,
-  email: response.email ?? null,
-  metadata: response.metadata ?? {},
-};
-```
-
-**When to use outputSchema:**
-
-- Internal tools with predictable, controlled responses
-- Tools that transform data into a known structure
-- Simple tools returning primitive types
-
-**When to omit outputSchema:**
-
-- External API integrations with variable responses
-- Tools that pass through third-party data structures
-- Search/list tools returning different result shapes
+Set `readOnlyHint: true` only for operations that cannot mutate external state.
+Keep titles, annotations, output schemas, and structured/text output in tests,
+including an in-memory MCP client test when practical.
 
 ---
 
