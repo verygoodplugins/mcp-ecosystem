@@ -342,6 +342,7 @@ on:
   push:
     branches: [main]
   merge_group:
+    types: [checks_requested]
 
 jobs:
   test:
@@ -449,6 +450,7 @@ on:
   push:
     branches: [main]
   merge_group:
+    types: [checks_requested]
   workflow_dispatch:
 
 ${defaultsBlock}jobs:
@@ -1325,6 +1327,7 @@ on:
   pull_request:
     branches: [main]
   merge_group:
+    types: [checks_requested]
   workflow_dispatch:
 
 jobs:

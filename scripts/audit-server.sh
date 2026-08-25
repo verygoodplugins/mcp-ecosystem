@@ -200,6 +200,16 @@ for workflow in "${WORKFLOWS[@]}"; do
     fi
 done
 
+CI_WORKFLOW_PATH="$REPO_ROOT/.github/workflows/ci.yml"
+if [[ -f "$CI_WORKFLOW_PATH" ]]; then
+    if grep -A1 -E '^[[:space:]]*merge_group:' "$CI_WORKFLOW_PATH" | grep -Eq '^[[:space:]]*types:[[:space:]]*\[checks_requested\]'; then
+        echo "✅ .github/workflows/ci.yml explicitly subscribes to merge_group checks"
+    else
+        echo "❌ .github/workflows/ci.yml must subscribe to merge_group checks_requested"
+        ((ERRORS += 1))
+    fi
+fi
+
 if [[ -f "$REPO_ROOT/.github/dependabot.yml" ]]; then
     echo "✅ .github/dependabot.yml exists"
 else
