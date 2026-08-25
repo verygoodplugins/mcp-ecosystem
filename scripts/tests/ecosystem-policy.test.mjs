@@ -68,6 +68,10 @@ test("renders monorepo python managed files from inventory-style config", () => 
   assert.match(files[".github/workflows/ci.yml"], /name: Python CI/);
   assert.match(
     files[".github/workflows/ci.yml"],
+    /merge_group:\n    types: \[checks_requested\]/,
+  );
+  assert.match(
+    files[".github/workflows/ci.yml"],
     /files: whatsapp-mcp-server\/coverage\.xml/,
   );
   assert.match(files[".github/dependabot.yml"], /package-ecosystem: "gomod"/);
@@ -125,6 +129,7 @@ test("renders a stable single-node TypeScript CI check and scoped npm Dependabot
   const dependabot = files[".github/dependabot.yml"];
 
   assert.match(ci, /name: test/);
+  assert.match(ci, /merge_group:\n    types: \[checks_requested\]/);
   assert.match(ci, /node-version: "24"/);
   assert.match(
     ci,

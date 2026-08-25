@@ -533,7 +533,7 @@ Example:
    - Run linter
    - Run tests
    - Build
-   - Includes `merge_group` so required checks run inside GitHub merge queue
+   - Explicitly subscribes to `merge_group.checks_requested` so required checks run inside GitHub merge queue
 
 2. **release-please.yml** (TypeScript)
    - Triggered on push to main
@@ -655,8 +655,8 @@ use a wildcard pattern that matches all packages.
 
 Branch protection and required CI checks are managed centrally with GitHub
 organization rulesets where GitHub supports org-level enforcement. Merge queue
-is repository-level only, so enable it per repository after the CI workflow has a
-`merge_group` trigger. Repo-level booleans and workflow files stay in each repo
+is repository-level only, so enable it per repository after the CI workflow explicitly
+subscribes to `merge_group.checks_requested`. Repo-level booleans and workflow files stay in each repo
 because GitHub does not provide org defaults for them.
 
 `server-inventory.json` is the control plane for repo-specific capability data.
@@ -724,6 +724,8 @@ layer.
 
 Apply those per-repo settings with
 `./scripts/configure-github-defaults.sh <repo-slug|repo-name|path>`.
+The script refuses to enable a queue until the target CI workflow includes that explicit
+`merge_group` subscription.
 
 **Auto-merge policy:**
 

@@ -62,6 +62,55 @@ resolve_repo_slug() {
 
 REPO_SLUG="$(resolve_repo_slug "$INPUT")"
 
+ensure_merge_queue() {
+    local queue_count
+
+    if ! gh api -H "Accept: application/vnd.github.raw+json" \
+        "repos/$REPO_SLUG/contents/.github/workflows/ci.yml" \
+        | grep -A1 -E '^[[:space:]]*merge_group:' \
+        | grep -Eq '^[[:space:]]*types:[[:space:]]*\[checks_requested\]'; then
+        echo "❌ .github/workflows/ci.yml must declare merge_group checks_requested before enabling a merge queue"
+        exit 1
+    fi
+
+    queue_count="$(gh api "repos/$REPO_SLUG/rules/branches/main" \
+        --jq '[.[] | select(.type == "merge_queue")] | length')"
+    if [[ "$queue_count" -gt 0 ]]; then
+        echo "✅ Merge queue already effective"
+        return
+    fi
+
+    gh api -X POST "repos/$REPO_SLUG/rulesets" --input - <<'JSON' >/dev/null
+{
+  "name": "MCP merge queue",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": {
+      "include": ["~DEFAULT_BRANCH"],
+      "exclude": []
+    }
+  },
+  "rules": [
+    {
+      "type": "merge_queue",
+      "parameters": {
+        "merge_method": "SQUASH",
+        "max_entries_to_build": 1,
+        "min_entries_to_merge": 1,
+        "max_entries_to_merge": 1,
+        "min_entries_to_merge_wait_minutes": 0,
+        "grouping_strategy": "ALLGREEN",
+        "check_response_timeout_minutes": 30
+      }
+    }
+  ]
+}
+JSON
+
+    echo "✅ Enabled serial squash merge queue"
+}
+
 echo "🔧 Configuring GitHub defaults for $REPO_SLUG"
 echo "================================================"
 
@@ -72,6 +121,7 @@ gh api -X PATCH "repos/$REPO_SLUG" \
 
 gh api -X PUT "repos/$REPO_SLUG/vulnerability-alerts" >/dev/null
 gh api -X PUT "repos/$REPO_SLUG/automated-security-fixes" >/dev/null
+ensure_merge_queue
 
 echo "✅ Updated repository settings"
 gh api "repos/$REPO_SLUG" --jq '{allow_auto_merge,allow_squash_merge,delete_branch_on_merge}'
