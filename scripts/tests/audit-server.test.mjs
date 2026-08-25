@@ -29,6 +29,19 @@ function findBash5() {
   return undefined;
 }
 
+function runToolAudit(source) {
+  const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-tool-audit-"));
+  fs.writeFileSync(path.join(sourceRoot, "index.ts"), source);
+
+  try {
+    return spawnSync(process.execPath, [toolAuditScript, sourceRoot], {
+      encoding: "utf8",
+    });
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+  }
+}
+
 test("Bash 5 audit prints its summary after recording errors and warnings", (t) => {
   const bash5 = findBash5();
   if (!bash5) {
@@ -141,14 +154,21 @@ test("Bash 5 audit identifies every missing MCP v2 safeguard and prints its summ
     `server.registerTool(
   'safe',
   {
+    title: 'Safe tool',
+    inputSchema: z.object({}),
     outputSchema: z.object({ result: z.string() }),
     annotations: { readOnlyHint: true, destructiveHint: false },
   },
-  async () => ({
-    content: [],
-    structuredContent: { result: 'ok' },
-    isError: true,
-  }),
+  async () => {
+    if (process.env.FAIL_SAFE_TOOL) {
+      return { content: [{ type: 'text', text: 'failed' }], isError: true };
+    }
+    const output = { result: 'ok' };
+    return {
+      content: [{ type: 'text', text: JSON.stringify(output) }],
+      structuredContent: output,
+    };
+  },
 );
 server.registerTool('unsafe', {}, async () => ({ content: [] }));
 `,
@@ -258,11 +278,13 @@ test("MCP v2 audit requires JSON text to match structured content", () => {
     annotations: { readOnlyHint: true, destructiveHint: false },
   },
   async () => {
+    if (process.env.FAIL_MATCHED_TOOL) {
+      return { content: [{ type: 'text', text: 'failed' }], isError: true };
+    }
     const output = { result: 'actual' };
     return {
       content: [{ type: 'text', text: JSON.stringify(output, null, 2) }],
       structuredContent: output,
-      isError: true,
     };
   },
 );
@@ -274,11 +296,15 @@ server.registerTool(
     outputSchema: z.object({ result: z.string() }),
     annotations: { readOnlyHint: true, destructiveHint: false },
   },
-  async () => ({
-    content: [{ type: 'text', text: 'not the JSON result' }],
-    structuredContent: { result: 'actual' },
-    isError: true,
-  }),
+  async () => {
+    if (process.env.FAIL_MISMATCHED_TOOL) {
+      return { content: [{ type: 'text', text: 'failed' }], isError: true };
+    }
+    return {
+      content: [{ type: 'text', text: 'not the JSON result' }],
+      structuredContent: { result: 'actual' },
+    };
+  },
 );
 `,
   );
@@ -317,11 +343,13 @@ server.registerTool(
     annotations: { readOnlyHint: true, destructiveHint: false },
   },
   async () => {
+    if (process.env.FAIL_COMPLETE_TOOL) {
+      return { content: [{ type: 'text', text: 'failed' }], isError: true };
+    }
     const output = { result: 'ok' };
     return {
       content: [{ type: 'text', text: JSON.stringify(output) }],
       structuredContent: output,
-      isError: true,
     };
   },
 );
@@ -342,11 +370,13 @@ server.registerTool(
     annotations: { readOnlyHint: true, destructiveHint: false },
   },
   async () => {
+    if (process.env.FAIL_MISSING_TITLE_TOOL) {
+      return { content: [{ type: 'text', text: 'failed' }], isError: true };
+    }
     const output = { result: 'ok' };
     return {
       content: [{ type: 'text', text: JSON.stringify(output) }],
       structuredContent: output,
-      isError: true,
     };
   },
 );
@@ -358,6 +388,196 @@ server.registerTool(
   } finally {
     fs.rmSync(sourceRoot, { recursive: true, force: true });
   }
+});
+
+test("MCP v2 audit validates every successful return object", () => {
+  const result = runToolAudit(`server.registerTool(
+  'branched',
+  {
+    title: 'Branched tool',
+    inputSchema: z.object({ format: z.string() }),
+    outputSchema: z.object({ result: z.string() }),
+    annotations: { readOnlyHint: true, destructiveHint: false },
+  },
+  async ({ format }) => {
+    if (format === 'plain') {
+      return { content: [{ type: 'text', text: 'plain text only' }] };
+    }
+    if (format === 'error') {
+      return { content: [{ type: 'text', text: 'failed' }], isError: true };
+    }
+    const output = { result: format };
+    return {
+      content: [{ type: 'text', text: JSON.stringify(output) }],
+      structuredContent: output,
+    };
+  },
+);`);
+
+  assert.equal(result.status, 0);
+  assert.equal(result.stdout, "1|1|0|0");
+});
+
+test("MCP v2 audit ignores comment-only error results", () => {
+  const result = runToolAudit(`server.registerTool(
+  'commented-error',
+  {
+    title: 'Commented error tool',
+    inputSchema: z.object({}),
+    outputSchema: z.object({ result: z.string() }),
+    annotations: { readOnlyHint: true, destructiveHint: false },
+  },
+  async () => {
+    // Expected failures should return { content: [], isError: true }.
+    const output = { result: 'ok' };
+    return {
+      content: [{ type: 'text', text: JSON.stringify(output) }],
+      structuredContent: output,
+    };
+  },
+);`);
+
+  assert.equal(result.status, 0);
+  assert.equal(result.stdout, "1|0|1|0");
+});
+
+test("MCP v2 audit scopes safety hints to inline annotations", () => {
+  const result = runToolAudit(`server.registerTool(
+  'nested-hints',
+  {
+    title: 'Nested hints tool',
+    inputSchema: z.object({
+      readOnlyHint: z.boolean(),
+      destructiveHint: z.boolean(),
+    }),
+    outputSchema: z.object({ result: z.string() }),
+  },
+  async () => {
+    if (process.env.FAIL_NESTED_HINTS_TOOL) {
+      return { content: [{ type: 'text', text: 'failed' }], isError: true };
+    }
+    const output = { result: 'ok' };
+    return {
+      content: [{ type: 'text', text: JSON.stringify(output) }],
+      structuredContent: output,
+    };
+  },
+);`);
+
+  assert.equal(result.status, 0);
+  assert.equal(result.stdout, "1|0|0|1");
+});
+
+test("MCP v2 audit warns when a dynamic return cannot be proven", () => {
+  const result = runToolAudit(`server.registerTool(
+  'dynamic-result',
+  {
+    title: 'Dynamic result tool',
+    inputSchema: z.object({}),
+    outputSchema: z.object({ result: z.string() }),
+    annotations: { readOnlyHint: true, destructiveHint: false },
+  },
+  async () => {
+    if (process.env.FAIL_DYNAMIC_TOOL) {
+      return { content: [{ type: 'text', text: 'failed' }], isError: true };
+    }
+    const output = { result: 'ok' };
+    return buildResult(output);
+  },
+);`);
+
+  assert.equal(result.status, 0);
+  assert.equal(result.stdout, "1|1|0|0");
+});
+
+test("MCP v2 audit accepts the generated TypeScript starter", () => {
+  const starter = fs.readFileSync(
+    path.resolve("templates/typescript/src/index.ts.template"),
+    "utf8",
+  );
+  const result = runToolAudit(starter);
+
+  assert.equal(result.status, 0);
+  assert.equal(result.stdout, "1|0|0|0");
+});
+
+test("MCP v2 audit ignores returns inside nested callbacks", () => {
+  const result = runToolAudit(`server.registerTool(
+  'nested-callback',
+  {
+    title: 'Nested callback tool',
+    inputSchema: z.object({ values: z.array(z.string()) }),
+    outputSchema: z.object({ result: z.array(z.string()) }),
+    annotations: { readOnlyHint: true, destructiveHint: false },
+  },
+  async ({ values }) => {
+    if (process.env.FAIL_NESTED_CALLBACK_TOOL) {
+      return { content: [{ type: 'text', text: 'failed' }], isError: true };
+    }
+    const result = values.map((value) => {
+      return { nested: value };
+    });
+    const output = { result: result.map((item) => item.nested) };
+    return {
+      content: [{ type: 'text', text: JSON.stringify(output) }],
+      structuredContent: output,
+    };
+  },
+);`);
+
+  assert.equal(result.status, 0);
+  assert.equal(result.stdout, "1|0|0|0");
+});
+
+test("MCP v2 audit supports function handlers with nested callbacks", () => {
+  const result = runToolAudit(`server.registerTool(
+  'function-handler',
+  {
+    title: 'Function handler tool',
+    inputSchema: z.object({ values: z.array(z.string()) }),
+    outputSchema: z.object({ result: z.array(z.string()) }),
+    annotations: { readOnlyHint: true, destructiveHint: false },
+  },
+  async function ({ values }) {
+    const nested = values.map((value) => ({ nested: value }));
+    if (process.env.FAIL_FUNCTION_HANDLER_TOOL) {
+      return { content: [{ type: 'text', text: 'failed' }], isError: true };
+    }
+    const output = { result: nested.map((item) => item.nested) };
+    return {
+      content: [{ type: 'text', text: JSON.stringify(output) }],
+      structuredContent: output,
+    };
+  },
+);`);
+
+  assert.equal(result.status, 0);
+  assert.equal(result.stdout, "1|0|0|0");
+});
+
+test("MCP v2 audit accepts static assertions on inline annotations", () => {
+  const result = runToolAudit(`server.registerTool(
+  'asserted-annotations',
+  {
+    title: 'Asserted annotations tool',
+    inputSchema: z.object({}),
+    outputSchema: z.object({ result: z.string() }),
+    annotations: ({ readOnlyHint: true, destructiveHint: false } as const),
+  },
+  async () => {
+    if (process.env.FAIL_ASSERTED_ANNOTATIONS_TOOL) {
+      return { content: [{ type: 'text', text: 'failed' }], isError: true };
+    }
+    const output = { result: 'ok' };
+    return {
+      content: [{ type: 'text', text: JSON.stringify(output) }],
+      structuredContent: output,
+    };
+  },
+);`);
+
+  assert.equal(result.status, 0);
+  assert.equal(result.stdout, "1|0|0|0");
 });
 
 test("registry publication audit scopes npm dependency to its job", () => {
