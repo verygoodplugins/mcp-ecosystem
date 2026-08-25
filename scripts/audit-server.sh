@@ -571,21 +571,21 @@ if [[ "$SERVER_TYPE" == "typescript" && -d "$PACKAGE_ROOT/src" ]] && grep -rE 'r
         echo "✅ Tool registrations include outputSchema and structuredContent"
     else
         echo "⚠️  MCP v2 tools should declare outputSchema and return structuredContent with matching JSON text"
-        ((WARNINGS++))
+        ((WARNINGS += 1))
     fi
 
     if grep -rE 'isError[[:space:]]*:[[:space:]]*true' "$PACKAGE_ROOT/src" > /dev/null 2>&1; then
         echo "✅ Expected tool failures use MCP isError results"
     else
         echo "⚠️  Tool handlers should return isError: true for expected input, configuration, and upstream failures"
-        ((WARNINGS++))
+        ((WARNINGS += 1))
     fi
 
     if grep -rE 'readOnlyHint[[:space:]]*:' "$PACKAGE_ROOT/src" > /dev/null 2>&1; then
         echo "✅ Tool annotations declare read-only behavior"
     else
         echo "⚠️  Tool annotations should explicitly declare readOnlyHint and destructiveHint"
-        ((WARNINGS++))
+        ((WARNINGS += 1))
     fi
 fi
 
@@ -595,7 +595,7 @@ if [[ "$SERVER_TYPE" == "typescript" && -f "$REPO_ROOT/.github/workflows/$RELEAS
         echo "✅ MCP Registry publication is coupled to successful npm publication"
     else
         echo "⚠️  Release workflow should publish the registry manifest after npm publication using GitHub OIDC"
-        ((WARNINGS++))
+        ((WARNINGS += 1))
     fi
 fi
 
@@ -646,7 +646,7 @@ echo "----------------------"
 
 # Check for potential secrets
 if [[ -d "$PACKAGE_ROOT/src" ]]; then
-    if grep -rE --exclude='*.test.*' --exclude='*.spec.*' '(api_key|apikey|password|secret|token)\s*[:=]\s*["\x27][^"\x27]{8,}["\x27]' "$PACKAGE_ROOT/src" 2>/dev/null | grep -v '.env' > /dev/null; then
+    if grep -rE --exclude='*.test.*' --exclude='*.spec.*' --exclude='.env*' '(api_key|apikey|password|secret|token)\s*[:=]\s*["\x27][^"\x27]{8,}["\x27]' "$PACKAGE_ROOT/src" > /dev/null 2>&1; then
         echo "⚠️  Potential hardcoded secrets found"
         ((WARNINGS += 1))
     else

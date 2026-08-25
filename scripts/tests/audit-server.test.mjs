@@ -110,7 +110,16 @@ test("audit accepts inventory-declared package files as exact extras", (t) => {
   }
 });
 
-test("audit identifies missing MCP v2 structured-result safeguards", () => {
+test("Bash 5 audit identifies every missing MCP v2 safeguard and prints its summary", (t) => {
+  const bash5 = findBash5();
+  if (!bash5) {
+    t.skip("Bash 5+ is unavailable");
+    return;
+  }
+
+  const auditSource = fs.readFileSync(auditScript, "utf8");
+  assert.doesNotMatch(auditSource, /\(\(WARNINGS\+\+\)\)/);
+
   const serverRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-audit-v2-"));
   fs.mkdirSync(path.join(serverRoot, "src"));
   fs.mkdirSync(path.join(serverRoot, ".github", "workflows"), { recursive: true });
@@ -134,11 +143,51 @@ test("audit identifies missing MCP v2 structured-result safeguards", () => {
   fs.writeFileSync(path.join(serverRoot, ".github", "workflows", "release-please.yml"), "name: release\n");
 
   try {
-    const result = spawnSync("/bin/bash", [auditScript, serverRoot], { encoding: "utf8" });
+    const result = spawnSync(bash5, [auditScript, serverRoot], {
+      encoding: "utf8",
+    });
     assert.match(result.stdout, /declare outputSchema and return structuredContent/);
     assert.match(result.stdout, /isError: true/);
     assert.match(result.stdout, /readOnlyHint and destructiveHint/);
     assert.match(result.stdout, /registry manifest after npm publication/);
+    assert.match(result.stdout, /📊 Audit Summary/);
+  } finally {
+    fs.rmSync(serverRoot, { recursive: true, force: true });
+  }
+});
+
+test("secret audit ignores test, spec, and env fixtures but reports production source", () => {
+  const serverRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-audit-secrets-"));
+  fs.mkdirSync(path.join(serverRoot, "src"));
+  fs.writeFileSync(path.join(serverRoot, "package.json"), "{}\n");
+  fs.writeFileSync(
+    path.join(serverRoot, "src", "credentials.test.ts"),
+    "const api_key = 'fake-test-secret';\n",
+  );
+  fs.writeFileSync(
+    path.join(serverRoot, "src", "credentials.spec.ts"),
+    "const api_key = 'fake-spec-secret';\n",
+  );
+  fs.writeFileSync(
+    path.join(serverRoot, "src", ".env.fixture"),
+    "const api_key = 'fake-env-secret';\n",
+  );
+
+  try {
+    const fixturesOnly = spawnSync("/bin/bash", [auditScript, serverRoot], {
+      encoding: "utf8",
+    });
+    assert.doesNotMatch(fixturesOnly.stdout, /Potential hardcoded secrets/);
+    assert.match(fixturesOnly.stdout, /No obvious hardcoded secrets/);
+
+    fs.writeFileSync(
+      path.join(serverRoot, "src", "credentials.ts"),
+      "const api_key = 'production-secret';\n",
+    );
+    const productionSource = spawnSync("/bin/bash", [auditScript, serverRoot], {
+      encoding: "utf8",
+    });
+    assert.match(productionSource.stdout, /Potential hardcoded secrets/);
   } finally {
     fs.rmSync(serverRoot, { recursive: true, force: true });
   }
