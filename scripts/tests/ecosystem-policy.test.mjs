@@ -165,6 +165,8 @@ test("TypeScript starter models safe MCP v2 tool contracts", () => {
   );
 
   assert.match(template, /serveStdio\(/);
+  assert.match(template, /title:/);
+  assert.match(template, /inputSchema:/);
   assert.match(template, /outputSchema:/);
   assert.match(template, /structuredContent:/);
   assert.match(template, /isError: true/);

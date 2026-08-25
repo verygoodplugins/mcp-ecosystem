@@ -94,18 +94,18 @@ function findRegisterToolCalls(source) {
   return calls;
 }
 
-function countTopLevelArguments(call) {
-  const body = call.slice(call.indexOf("(") + 1, call.lastIndexOf(")"));
+function splitTopLevel(source) {
   const depths = { parentheses: 0, braces: 0, brackets: 0 };
-  let argumentsCount = body.trim() ? 1 : 0;
+  const parts = [];
+  let partStart = 0;
   let quote = "";
   let escaped = false;
   let lineComment = false;
   let blockComment = false;
 
-  for (let index = 0; index < body.length; index += 1) {
-    const character = body[index];
-    const nextCharacter = body[index + 1];
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index];
+    const nextCharacter = source[index + 1];
 
     if (lineComment) {
       lineComment = character !== "\n";
@@ -155,11 +155,38 @@ function countTopLevelArguments(call) {
       depths.braces === 0 &&
       depths.brackets === 0
     ) {
-      argumentsCount += 1;
+      parts.push(source.slice(partStart, index));
+      partStart = index + 1;
     }
   }
 
-  return argumentsCount;
+  const finalPart = source.slice(partStart);
+  if (finalPart.trim()) parts.push(finalPart);
+  return parts;
+}
+
+function splitRegisterToolArguments(call) {
+  const body = call.slice(call.indexOf("(") + 1, call.lastIndexOf(")"));
+  return splitTopLevel(body);
+}
+
+function hasTopLevelOption(options, name) {
+  const trimmed = options.trim();
+  if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) return false;
+
+  const properties = splitTopLevel(trimmed.slice(1, -1));
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const explicitProperty = new RegExp(
+    `^(?:${escapedName}|["']${escapedName}["'])\\s*:`,
+  );
+  const shorthandProperty = new RegExp(`^${escapedName}$`);
+
+  return properties.some((property) => {
+    const normalized = property
+      .replace(/^\s*(?:(?:\/\/[^\n]*\n)|(?:\/\*[\s\S]*?\*\/))\s*/g, "")
+      .trim();
+    return explicitProperty.test(normalized) || shorthandProperty.test(normalized);
+  });
 }
 
 function hasMatchingStructuredJson(registration) {
@@ -192,10 +219,14 @@ const summary = {
 for (const sourceFile of sourceFiles) {
   const source = fs.readFileSync(sourceFile, "utf8");
   for (const registration of findRegisterToolCalls(source)) {
-    if (countTopLevelArguments(registration) < 3) continue;
+    const registrationArguments = splitRegisterToolArguments(registration);
+    if (registrationArguments.length < 3) continue;
+    const options = registrationArguments[1];
     summary.tools += 1;
     if (
-      !/\boutputSchema\s*:/.test(registration) ||
+      !hasTopLevelOption(options, "title") ||
+      !hasTopLevelOption(options, "inputSchema") ||
+      !hasTopLevelOption(options, "outputSchema") ||
       !hasMatchingStructuredJson(registration)
     ) {
       summary.missingResults += 1;

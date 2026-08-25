@@ -252,6 +252,8 @@ test("MCP v2 audit requires JSON text to match structured content", () => {
     `server.registerTool(
   'matched',
   {
+    title: 'Matched tool',
+    inputSchema: z.object({}),
     outputSchema: z.object({ result: z.string() }),
     annotations: { readOnlyHint: true, destructiveHint: false },
   },
@@ -267,6 +269,8 @@ test("MCP v2 audit requires JSON text to match structured content", () => {
 server.registerTool(
   'mismatched',
   {
+    title: 'Mismatched tool',
+    inputSchema: z.object({}),
     outputSchema: z.object({ result: z.string() }),
     annotations: { readOnlyHint: true, destructiveHint: false },
   },
@@ -285,6 +289,72 @@ server.registerTool(
     });
     assert.equal(result.status, 0);
     assert.equal(result.stdout, "2|1|0|0");
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+  }
+});
+
+test("MCP v2 audit accepts shorthand and scopes metadata to tool options", () => {
+  const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-tool-audit-"));
+  const sourcePath = path.join(sourceRoot, "index.ts");
+  const runAudit = () =>
+    spawnSync(process.execPath, [toolAuditScript, sourceRoot], {
+      encoding: "utf8",
+    });
+
+  try {
+    fs.writeFileSync(
+      sourcePath,
+      `const title = 'Complete tool';
+const inputSchema = z.object({});
+const outputSchema = z.object({ result: z.string() });
+server.registerTool(
+  'complete',
+  {
+    title,
+    inputSchema,
+    outputSchema,
+    annotations: { readOnlyHint: true, destructiveHint: false },
+  },
+  async () => {
+    const output = { result: 'ok' };
+    return {
+      content: [{ type: 'text', text: JSON.stringify(output) }],
+      structuredContent: output,
+      isError: true,
+    };
+  },
+);
+`,
+    );
+    const shorthandResult = runAudit();
+    assert.equal(shorthandResult.status, 0);
+    assert.equal(shorthandResult.stdout, "1|0|0|0");
+
+    fs.writeFileSync(
+      sourcePath,
+      `const outputSchema = z.object({ result: z.string() });
+server.registerTool(
+  'missing-title',
+  {
+    inputSchema: z.object({ title: z.string() }),
+    outputSchema,
+    annotations: { readOnlyHint: true, destructiveHint: false },
+  },
+  async () => {
+    const output = { result: 'ok' };
+    return {
+      content: [{ type: 'text', text: JSON.stringify(output) }],
+      structuredContent: output,
+      isError: true,
+    };
+  },
+);
+`,
+    );
+    const nestedTitleResult = runAudit();
+    assert.equal(nestedTitleResult.status, 0);
+    assert.equal(nestedTitleResult.stdout, "1|1|0|0");
   } finally {
     fs.rmSync(sourceRoot, { recursive: true, force: true });
   }

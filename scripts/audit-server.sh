@@ -573,9 +573,9 @@ if [[ "${MCP_TOOL_COUNT:-0}" -gt 0 ]]; then
     echo "------------------------------------"
 
     if [[ "$MCP_RESULT_MISSING" -eq 0 ]]; then
-        echo "✅ Every tool registration includes outputSchema and structuredContent"
+        echo "✅ Every tool registration includes title, inputSchema, outputSchema, and matching JSON/structured output"
     else
-        echo "⚠️  MCP v2 tools should declare outputSchema and return structuredContent with matching JSON text"
+        echo "⚠️  MCP v2 tools should declare outputSchema and return structuredContent with matching JSON text; title and inputSchema are also required"
         ((WARNINGS += 1))
     fi
 
