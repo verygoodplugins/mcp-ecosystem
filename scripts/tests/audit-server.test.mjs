@@ -244,3 +244,81 @@ test("MCP v2 audit ignores one-argument registerTool APIs", () => {
     fs.rmSync(sourceRoot, { recursive: true, force: true });
   }
 });
+
+test("MCP v2 audit requires JSON text to match structured content", () => {
+  const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-tool-audit-"));
+  fs.writeFileSync(
+    path.join(sourceRoot, "index.ts"),
+    `server.registerTool(
+  'matched',
+  {
+    outputSchema: z.object({ result: z.string() }),
+    annotations: { readOnlyHint: true, destructiveHint: false },
+  },
+  async () => {
+    const output = { result: 'actual' };
+    return {
+      content: [{ type: 'text', text: JSON.stringify(output, null, 2) }],
+      structuredContent: output,
+      isError: true,
+    };
+  },
+);
+server.registerTool(
+  'mismatched',
+  {
+    outputSchema: z.object({ result: z.string() }),
+    annotations: { readOnlyHint: true, destructiveHint: false },
+  },
+  async () => ({
+    content: [{ type: 'text', text: 'not the JSON result' }],
+    structuredContent: { result: 'actual' },
+    isError: true,
+  }),
+);
+`,
+  );
+
+  try {
+    const result = spawnSync(process.execPath, [toolAuditScript, sourceRoot], {
+      encoding: "utf8",
+    });
+    assert.equal(result.status, 0);
+    assert.equal(result.stdout, "2|1|0|0");
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+  }
+});
+
+test("registry publication audit scopes npm dependency to its job", () => {
+  const serverRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-audit-registry-"));
+  fs.mkdirSync(path.join(serverRoot, "src"));
+  fs.mkdirSync(path.join(serverRoot, ".github", "workflows"), { recursive: true });
+  fs.writeFileSync(
+    path.join(serverRoot, "package.json"),
+    JSON.stringify({ name: "@example/mcp-registry", version: "2.0.0" }),
+  );
+  fs.writeFileSync(path.join(serverRoot, "server.json"), "{}\n");
+  fs.writeFileSync(
+    path.join(serverRoot, ".github", "workflows", "release-please.yml"),
+    `jobs:
+  gh-packages-publish:
+    needs: [release-please, npm-publish]
+  mcp-registry-publish:
+    steps:
+      - run: mcp-publisher login github-oidc
+`,
+  );
+
+  try {
+    const result = spawnSync("/bin/bash", [auditScript, serverRoot], {
+      encoding: "utf8",
+    });
+    assert.match(
+      result.stdout,
+      /Release workflow should publish the registry manifest after npm publication using GitHub OIDC/,
+    );
+  } finally {
+    fs.rmSync(serverRoot, { recursive: true, force: true });
+  }
+});

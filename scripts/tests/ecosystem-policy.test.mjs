@@ -159,6 +159,10 @@ test("renders a stable single-node TypeScript CI check and scoped npm Dependabot
 
 test("TypeScript starter models safe MCP v2 tool contracts", () => {
   const template = fs.readFileSync(typescriptServerTemplate, "utf8");
+  const agentTemplate = fs.readFileSync(
+    path.resolve("templates/typescript/AGENTS.md.template"),
+    "utf8",
+  );
 
   assert.match(template, /serveStdio\(/);
   assert.match(template, /outputSchema:/);
@@ -166,6 +170,8 @@ test("TypeScript starter models safe MCP v2 tool contracts", () => {
   assert.match(template, /isError: true/);
   assert.match(template, /readOnlyHint: true/);
   assert.doesNotMatch(template, /requireApiKey\(\);/);
+  assert.match(agentTemplate, /Validate required configuration lazily/);
+  assert.doesNotMatch(agentTemplate, /configuration at startup/);
 });
 
 test("renders GitHub Packages mirror publish job for TypeScript releases", () => {

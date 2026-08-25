@@ -596,7 +596,12 @@ fi
 
 if [[ "$SERVER_TYPE" == "typescript" && -f "$REPO_ROOT/.github/workflows/$RELEASE_WORKFLOW" && -f "$REPO_ROOT/server.json" ]]; then
     RELEASE_PATH="$REPO_ROOT/.github/workflows/$RELEASE_WORKFLOW"
-    if grep -q 'mcp-registry-publish:' "$RELEASE_PATH" && grep -q 'needs: \[release-please, npm-publish\]' "$RELEASE_PATH" && grep -q 'mcp-publisher login github-oidc' "$RELEASE_PATH"; then
+    MCP_REGISTRY_JOB="$(awk '
+        /^  mcp-registry-publish:/ { in_registry_job = 1 }
+        in_registry_job && /^  [[:alnum:]_-]+:/ && $1 != "mcp-registry-publish:" { exit }
+        in_registry_job { print }
+    ' "$RELEASE_PATH")"
+    if [[ -n "$MCP_REGISTRY_JOB" ]] && grep -q 'needs: \[release-please, npm-publish\]' <<< "$MCP_REGISTRY_JOB" && grep -q 'mcp-publisher login github-oidc' <<< "$MCP_REGISTRY_JOB"; then
         echo "✅ MCP Registry publication is coupled to successful npm publication"
     else
         echo "⚠️  Release workflow should publish the registry manifest after npm publication using GitHub OIDC"

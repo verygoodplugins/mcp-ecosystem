@@ -162,6 +162,22 @@ function countTopLevelArguments(call) {
   return argumentsCount;
 }
 
+function hasMatchingStructuredJson(registration) {
+  const jsonTextPattern =
+    /\btext\s*:\s*JSON\.stringify\s*\(\s*([A-Za-z_$][\w$]*)(?=\s*[,\)])/g;
+  let match;
+
+  while ((match = jsonTextPattern.exec(registration)) !== null) {
+    const valueName = match[1].replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const structuredPattern = new RegExp(
+      `\\bstructuredContent\\s*:\\s*${valueName}\\b`,
+    );
+    if (structuredPattern.test(registration)) return true;
+  }
+
+  return false;
+}
+
 if (fs.existsSync(sourceRoot)) {
   collectSourceFiles(sourceRoot);
 }
@@ -180,7 +196,7 @@ for (const sourceFile of sourceFiles) {
     summary.tools += 1;
     if (
       !/\boutputSchema\s*:/.test(registration) ||
-      !/\bstructuredContent\s*:/.test(registration)
+      !hasMatchingStructuredJson(registration)
     ) {
       summary.missingResults += 1;
     }
