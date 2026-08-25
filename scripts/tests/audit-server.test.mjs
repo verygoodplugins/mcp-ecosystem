@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const auditScript = path.resolve("scripts/audit-server.sh");
+const toolAuditScript = path.resolve("scripts/lib/audit-mcp-v2-tools.mjs");
 
 function findBash5() {
   const candidates = [
@@ -135,7 +136,23 @@ test("Bash 5 audit identifies every missing MCP v2 safeguard and prints its summ
       scripts: { test: "node --test" },
     }),
   );
-  fs.writeFileSync(path.join(serverRoot, "src", "index.ts"), "server.registerTool('unsafe', {}, async () => ({ content: [] }));\n");
+  fs.writeFileSync(
+    path.join(serverRoot, "src", "index.ts"),
+    `server.registerTool(
+  'safe',
+  {
+    outputSchema: z.object({ result: z.string() }),
+    annotations: { readOnlyHint: true, destructiveHint: false },
+  },
+  async () => ({
+    content: [],
+    structuredContent: { result: 'ok' },
+    isError: true,
+  }),
+);
+server.registerTool('unsafe', {}, async () => ({ content: [] }));
+`,
+  );
   fs.writeFileSync(path.join(serverRoot, "README.md"), "# Unsafe\n");
   fs.writeFileSync(path.join(serverRoot, "LICENSE"), "MIT\n");
   fs.writeFileSync(path.join(serverRoot, "CHANGELOG.md"), "# Changelog\n");
@@ -158,6 +175,14 @@ test("Bash 5 audit identifies every missing MCP v2 safeguard and prints its summ
 
 test("secret audit ignores test, spec, and env fixtures but reports production source", () => {
   const serverRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-audit-secrets-"));
+  const gnuGrepPath = [
+    "/opt/homebrew/opt/grep/libexec/gnubin",
+    "/usr/local/opt/grep/libexec/gnubin",
+    process.env.PATH,
+  ]
+    .filter(Boolean)
+    .join(path.delimiter);
+  const auditEnv = { ...process.env, PATH: gnuGrepPath };
   fs.mkdirSync(path.join(serverRoot, "src"));
   fs.writeFileSync(path.join(serverRoot, "package.json"), "{}\n");
   fs.writeFileSync(
@@ -176,6 +201,7 @@ test("secret audit ignores test, spec, and env fixtures but reports production s
   try {
     const fixturesOnly = spawnSync("/bin/bash", [auditScript, serverRoot], {
       encoding: "utf8",
+      env: auditEnv,
     });
     assert.doesNotMatch(fixturesOnly.stdout, /Potential hardcoded secrets/);
     assert.match(fixturesOnly.stdout, /No obvious hardcoded secrets/);
@@ -186,9 +212,35 @@ test("secret audit ignores test, spec, and env fixtures but reports production s
     );
     const productionSource = spawnSync("/bin/bash", [auditScript, serverRoot], {
       encoding: "utf8",
+      env: auditEnv,
     });
     assert.match(productionSource.stdout, /Potential hardcoded secrets/);
   } finally {
     fs.rmSync(serverRoot, { recursive: true, force: true });
+  }
+});
+
+test("MCP v2 audit ignores one-argument registerTool APIs", () => {
+  const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-tool-audit-"));
+  fs.writeFileSync(
+    path.join(sourceRoot, "openclaw-plugin.ts"),
+    `api.registerTool({
+  name: 'automem_store_memory',
+  parameters: storeMemorySchema,
+  async execute(args) {
+    return jsonResult(await client.store(args));
+  },
+});
+`,
+  );
+
+  try {
+    const result = spawnSync(process.execPath, [toolAuditScript, sourceRoot], {
+      encoding: "utf8",
+    });
+    assert.equal(result.status, 0);
+    assert.equal(result.stdout, "0|0|0|0");
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
   }
 });

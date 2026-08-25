@@ -562,27 +562,32 @@ echo ""
 echo "📖 Checking README structure..."
 echo "--------------------------------"
 
-if [[ "$SERVER_TYPE" == "typescript" && -d "$PACKAGE_ROOT/src" ]] && grep -rE 'registerTool[[:space:]]*\(' "$PACKAGE_ROOT/src" > /dev/null 2>&1; then
+if [[ "$SERVER_TYPE" == "typescript" && -d "$PACKAGE_ROOT/src" ]]; then
+    MCP_TOOL_COUNTS="$(node "$SCRIPT_DIR/lib/audit-mcp-v2-tools.mjs" "$PACKAGE_ROOT/src")"
+    IFS='|' read -r MCP_TOOL_COUNT MCP_RESULT_MISSING MCP_ERROR_MISSING MCP_ANNOTATION_MISSING <<< "$MCP_TOOL_COUNTS"
+fi
+
+if [[ "${MCP_TOOL_COUNT:-0}" -gt 0 ]]; then
     echo ""
     echo "🧩 Checking MCP v2 tool contracts..."
     echo "------------------------------------"
 
-    if grep -rE 'outputSchema[[:space:]]*:' "$PACKAGE_ROOT/src" > /dev/null 2>&1 && grep -rE 'structuredContent[[:space:]]*:' "$PACKAGE_ROOT/src" > /dev/null 2>&1; then
-        echo "✅ Tool registrations include outputSchema and structuredContent"
+    if [[ "$MCP_RESULT_MISSING" -eq 0 ]]; then
+        echo "✅ Every tool registration includes outputSchema and structuredContent"
     else
         echo "⚠️  MCP v2 tools should declare outputSchema and return structuredContent with matching JSON text"
         ((WARNINGS += 1))
     fi
 
-    if grep -rE 'isError[[:space:]]*:[[:space:]]*true' "$PACKAGE_ROOT/src" > /dev/null 2>&1; then
-        echo "✅ Expected tool failures use MCP isError results"
+    if [[ "$MCP_ERROR_MISSING" -eq 0 ]]; then
+        echo "✅ Every tool handler represents expected failures with MCP isError results"
     else
         echo "⚠️  Tool handlers should return isError: true for expected input, configuration, and upstream failures"
         ((WARNINGS += 1))
     fi
 
-    if grep -rE 'readOnlyHint[[:space:]]*:' "$PACKAGE_ROOT/src" > /dev/null 2>&1; then
-        echo "✅ Tool annotations declare read-only behavior"
+    if [[ "$MCP_ANNOTATION_MISSING" -eq 0 ]]; then
+        echo "✅ Every tool annotation declares readOnlyHint and destructiveHint"
     else
         echo "⚠️  Tool annotations should explicitly declare readOnlyHint and destructiveHint"
         ((WARNINGS += 1))
@@ -646,7 +651,8 @@ echo "----------------------"
 
 # Check for potential secrets
 if [[ -d "$PACKAGE_ROOT/src" ]]; then
-    if grep -rE --exclude='*.test.*' --exclude='*.spec.*' --exclude='.env*' '(api_key|apikey|password|secret|token)\s*[:=]\s*["\x27][^"\x27]{8,}["\x27]' "$PACKAGE_ROOT/src" > /dev/null 2>&1; then
+    SECRET_ASSIGNMENT_PATTERN="(api_key|apikey|password|secret|token)[[:space:]]*[:=][[:space:]]*[\"'][^\"']{8,}[\"']"
+    if grep -rE --exclude='*.test.*' --exclude='*.spec.*' --exclude='.env*' "$SECRET_ASSIGNMENT_PATTERN" "$PACKAGE_ROOT/src" > /dev/null 2>&1; then
         echo "⚠️  Potential hardcoded secrets found"
         ((WARNINGS += 1))
     else

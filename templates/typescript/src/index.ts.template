@@ -8,13 +8,6 @@ import { z } from 'zod';
 process.env.DOTENV_CONFIG_QUIET = 'true';
 config({ quiet: true });
 
-function toolError(message: string) {
-  return {
-    content: [{ type: 'text' as const, text: message }],
-    isError: true,
-  };
-}
-
 export function createServer(): McpServer {
   const server = new McpServer({
     name: 'mcp-{name}',
@@ -46,7 +39,15 @@ export function createServer(): McpServer {
           structuredContent: output,
         };
       } catch (error) {
-        return toolError(error instanceof Error ? error.message : 'Tool request failed.');
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: error instanceof Error ? error.message : 'Tool request failed.',
+            },
+          ],
+          isError: true,
+        };
       }
     },
   );
