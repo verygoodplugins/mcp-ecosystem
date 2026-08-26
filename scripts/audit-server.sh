@@ -563,8 +563,12 @@ echo "📖 Checking README structure..."
 echo "--------------------------------"
 
 if [[ "$SERVER_TYPE" == "typescript" && -d "$PACKAGE_ROOT/src" ]]; then
-    MCP_TOOL_COUNTS="$(node "$SCRIPT_DIR/lib/audit-mcp-v2-tools.mjs" "$PACKAGE_ROOT/src")"
-    IFS='|' read -r MCP_TOOL_COUNT MCP_RESULT_MISSING MCP_ERROR_MISSING MCP_ANNOTATION_MISSING <<< "$MCP_TOOL_COUNTS"
+    if command -v node >/dev/null 2>&1; then
+        MCP_TOOL_COUNTS="$(node "$SCRIPT_DIR/lib/audit-mcp-v2-tools.mjs" "$PACKAGE_ROOT/src")"
+        IFS='|' read -r MCP_TOOL_COUNT MCP_RESULT_MISSING MCP_ERROR_MISSING MCP_ANNOTATION_MISSING <<< "$MCP_TOOL_COUNTS"
+    else
+        echo "ℹ️  MCP v2 tool contract audit skipped because Node is unavailable"
+    fi
 fi
 
 if [[ "${MCP_TOOL_COUNT:-0}" -gt 0 ]]; then

@@ -8,6 +8,14 @@ import { z } from 'zod';
 process.env.DOTENV_CONFIG_QUIET = 'true';
 config({ quiet: true });
 
+function requireApiKey(): string {
+  const apiKey = process.env.API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error('Missing required API_KEY environment variable.');
+  }
+  return apiKey;
+}
+
 export function createServer(): McpServer {
   const server = new McpServer({
     name: 'mcp-{name}',
@@ -33,6 +41,7 @@ export function createServer(): McpServer {
       try {
         // Validate external credentials lazily in the client or tool handler,
         // so tools/list succeeds even before the host supplies secrets.
+        requireApiKey();
         const output = { result: `Processed query: ${query}` };
         return {
           content: [{ type: 'text' as const, text: JSON.stringify(output) }],

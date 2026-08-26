@@ -580,6 +580,105 @@ test("MCP v2 audit accepts static assertions on inline annotations", () => {
   assert.equal(result.stdout, "1|0|0|0");
 });
 
+test("MCP v2 audit requires Boolean literal safety hints", () => {
+  const result = runToolAudit(`server.registerTool(
+  'undefined-annotations',
+  {
+    title: 'Undefined annotations tool',
+    inputSchema: z.object({}),
+    outputSchema: z.object({ result: z.string() }),
+    annotations: { readOnlyHint: undefined, destructiveHint: undefined },
+  },
+  async () => {
+    if (process.env.FAIL_UNDEFINED_ANNOTATIONS_TOOL) {
+      return { content: [{ type: 'text', text: 'failed' }], isError: true };
+    }
+    const output = { result: 'ok' };
+    return {
+      content: [{ type: 'text', text: JSON.stringify(output) }],
+      structuredContent: output,
+    };
+  },
+);`);
+
+  assert.equal(result.status, 0);
+  assert.equal(result.stdout, "1|0|0|1");
+});
+
+test("MCP v2 audit ignores commented-out tool registrations", () => {
+  const result = runToolAudit(`// server.registerTool(
+//   'old-tool',
+//   {},
+//   async () => ({ content: [] }),
+// );
+/* server.registerTool('removed-tool', {}, async () => ({ content: [] })); */
+const separators = /[/*]/;
+server.registerTool(
+  'active-tool',
+  {
+    title: 'Active tool',
+    inputSchema: z.object({}),
+    outputSchema: z.object({ result: z.string() }),
+    annotations: { readOnlyHint: true, destructiveHint: false },
+  },
+  async () => {
+    if (process.env.FAIL_ACTIVE_TOOL) {
+      return { content: [{ type: 'text', text: 'failed' }], isError: true };
+    }
+    const output = { result: 'ok' };
+    return {
+      content: [{ type: 'text', text: JSON.stringify(output) }],
+      structuredContent: output,
+    };
+  },
+);`);
+
+  assert.equal(result.status, 0);
+  assert.equal(result.stdout, "1|0|0|0");
+});
+
+test("TypeScript audit reaches its summary when Node is unavailable", () => {
+  const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-audit-no-node-"));
+  const serverRoot = path.join(fixtureRoot, "server");
+  const toolRoot = path.join(fixtureRoot, "bin");
+  fs.mkdirSync(serverRoot);
+  fs.mkdirSync(toolRoot);
+  fs.mkdirSync(path.join(serverRoot, "src"));
+  fs.writeFileSync(path.join(serverRoot, "package.json"), "{}\n");
+  fs.writeFileSync(path.join(serverRoot, "src", "index.ts"), "export {};\n");
+
+  for (const command of [
+    "awk",
+    "basename",
+    "cut",
+    "dirname",
+    "find",
+    "git",
+    "grep",
+    "head",
+    "sed",
+  ]) {
+    const commandPath = spawnSync("which", [command], {
+      encoding: "utf8",
+    }).stdout.trim();
+    assert.ok(commandPath, `${command} is required for this test`);
+    fs.symlinkSync(commandPath, path.join(toolRoot, command));
+  }
+
+  try {
+    const result = spawnSync("/bin/bash", [auditScript, serverRoot], {
+      encoding: "utf8",
+      env: { ...process.env, PATH: toolRoot },
+    });
+
+    assert.notEqual(result.status, 127);
+    assert.match(result.stdout, /MCP v2 tool contract audit skipped.*Node is unavailable/i);
+    assert.match(result.stdout, /📊 Audit Summary/);
+  } finally {
+    fs.rmSync(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
 test("registry publication audit scopes npm dependency to its job", () => {
   const serverRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-audit-registry-"));
   fs.mkdirSync(path.join(serverRoot, "src"));

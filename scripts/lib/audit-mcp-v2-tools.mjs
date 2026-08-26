@@ -27,6 +27,7 @@ function collectSourceFiles(directory) {
 }
 
 function findRegisterToolCalls(source) {
+  source = stripComments(source);
   const calls = [];
   const matcher = /\bregisterTool\s*\(/g;
   let match;
@@ -170,12 +171,27 @@ function splitRegisterToolArguments(call) {
   return splitTopLevel(body);
 }
 
+function isRegexLiteralStart(source, slashIndex) {
+  let cursor = slashIndex - 1;
+  while (cursor >= 0 && /\s/.test(source[cursor])) cursor -= 1;
+  if (cursor < 0) return true;
+
+  if (/[([{=:,;!&|?+\-*%^~<>]/.test(source[cursor])) return true;
+
+  const prefix = source.slice(0, cursor + 1);
+  return /(?:^|[^\w$])(?:await|case|delete|in|instanceof|new|of|return|throw|typeof|void|yield)\s*$/.test(
+    prefix,
+  );
+}
+
 function stripComments(source) {
   let result = "";
   let quote = "";
   let escaped = false;
   let lineComment = false;
   let blockComment = false;
+  let regex = false;
+  let regexCharacterClass = false;
 
   for (let index = 0; index < source.length; index += 1) {
     const character = source[index];
@@ -200,6 +216,21 @@ function stripComments(source) {
       }
       continue;
     }
+    if (regex) {
+      result += character === "\n" ? "\n" : " ";
+      if (escaped) {
+        escaped = false;
+      } else if (character === "\\") {
+        escaped = true;
+      } else if (character === "[") {
+        regexCharacterClass = true;
+      } else if (character === "]") {
+        regexCharacterClass = false;
+      } else if (character === "/" && !regexCharacterClass) {
+        regex = false;
+      }
+      continue;
+    }
     if (quote) {
       result += character;
       if (escaped) {
@@ -221,6 +252,13 @@ function stripComments(source) {
       blockComment = true;
       result += "  ";
       index += 1;
+      continue;
+    }
+    if (character === "/" && isRegexLiteralStart(source, index)) {
+      regex = true;
+      regexCharacterClass = false;
+      escaped = false;
+      result += " ";
       continue;
     }
     if (character === '"' || character === "'" || character === "`") {
@@ -487,6 +525,10 @@ function isLiteralTrue(value) {
   return /^true(?:\s+as\s+const)?$/.test(value?.trim() ?? "");
 }
 
+function isBooleanLiteral(value) {
+  return /^(?:true|false)(?:\s+as\s+const)?$/.test(value?.trim() ?? "");
+}
+
 function hasTextContent(value) {
   return (
     /\btype\s*:\s*["']text["']/.test(value ?? "") &&
@@ -552,8 +594,8 @@ function analyzeToolRegistration(registration) {
     errorsComplete: hasErrorResult,
     annotationsComplete:
       Boolean(annotations) &&
-      annotations.has("readOnlyHint") &&
-      annotations.has("destructiveHint"),
+      isBooleanLiteral(annotations.get("readOnlyHint")) &&
+      isBooleanLiteral(annotations.get("destructiveHint")),
   };
 }
 

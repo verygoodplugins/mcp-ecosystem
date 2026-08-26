@@ -171,7 +171,8 @@ test("TypeScript starter models safe MCP v2 tool contracts", () => {
   assert.match(template, /structuredContent:/);
   assert.match(template, /isError: true/);
   assert.match(template, /readOnlyHint: true/);
-  assert.doesNotMatch(template, /requireApiKey\(\);/);
+  assert.match(template, /function requireApiKey\(\): string/);
+  assert.match(template, /async \(\{ query \}\) => \{[\s\S]*?requireApiKey\(\);/);
   assert.match(agentTemplate, /Validate required configuration lazily/);
   assert.doesNotMatch(agentTemplate, /configuration at startup/);
 });
