@@ -9,17 +9,14 @@ process.env.DOTENV_CONFIG_QUIET = 'true';
 config({ quiet: true });
 
 function requireApiKey(): string {
-  const apiKey = process.env.API_KEY;
+  const apiKey = process.env.API_KEY?.trim();
   if (!apiKey) {
-    throw new Error('Missing required API_KEY environment variable');
+    throw new Error('Missing required API_KEY environment variable.');
   }
   return apiKey;
 }
 
 export function createServer(): McpServer {
-  // Keep startup validation here so every stdio connection uses valid config.
-  requireApiKey();
-
   const server = new McpServer({
     name: 'mcp-{name}',
     version: '1.0.0',
@@ -28,19 +25,40 @@ export function createServer(): McpServer {
   server.registerTool(
     'example_tool',
     {
+      title: 'Example read-only tool',
       description: 'Example tool - replace with your actual tools',
       inputSchema: z.object({
         query: z.string().min(1).describe('The query to process'),
       }),
+      outputSchema: z.object({ result: z.string() }),
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
+      },
     },
-    async ({ query }) => ({
-      content: [
-        {
-          type: 'text',
-          text: `Processed query: ${query}`,
-        },
-      ],
-    }),
+    async ({ query }) => {
+      try {
+        // Validate external credentials lazily in the client or tool handler,
+        // so tools/list succeeds even before the host supplies secrets.
+        requireApiKey();
+        const output = { result: `Processed query: ${query}` };
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(output) }],
+          structuredContent: output,
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: error instanceof Error ? error.message : 'Tool request failed.',
+            },
+          ],
+          isError: true,
+        };
+      }
+    },
   );
 
   return server;

@@ -111,6 +111,9 @@ Key requirements:
 - `scripts/validate-sync.mjs` blocks PR creation when the generated diff is incompatible with the repo profile.
 - TypeScript templates use `@modelcontextprotocol/server` v2, Zod 4, a stable
   Node 24 `Test` check, and host-neutral `AGENTS.md` instructions.
+- Every v2 tool contract declares output and safety metadata, returns matching
+  structured and JSON-text results, uses `isError` for expected failures, and
+  validates external credentials lazily so MCP discovery remains available.
 - `mcp-freescout` uses the `ts-vitest-integration-nonblocking` profile: its
   secret-mapped integration job runs after the stable test job and cannot block
   merges; its release metadata uses `release-please-manifest`.

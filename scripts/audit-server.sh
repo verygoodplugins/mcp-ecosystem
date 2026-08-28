@@ -572,6 +572,57 @@ echo ""
 echo "📖 Checking README structure..."
 echo "--------------------------------"
 
+if [[ "$SERVER_TYPE" == "typescript" && -d "$PACKAGE_ROOT/src" ]]; then
+    if command -v node >/dev/null 2>&1; then
+        MCP_TOOL_COUNTS="$(node "$SCRIPT_DIR/lib/audit-mcp-v2-tools.mjs" "$PACKAGE_ROOT/src")"
+        IFS='|' read -r MCP_TOOL_COUNT MCP_RESULT_MISSING MCP_ERROR_MISSING MCP_ANNOTATION_MISSING <<< "$MCP_TOOL_COUNTS"
+    else
+        echo "ℹ️  MCP v2 tool contract audit skipped because Node is unavailable"
+    fi
+fi
+
+if [[ "${MCP_TOOL_COUNT:-0}" -gt 0 ]]; then
+    echo ""
+    echo "🧩 Checking MCP v2 tool contracts..."
+    echo "------------------------------------"
+
+    if [[ "$MCP_RESULT_MISSING" -eq 0 ]]; then
+        echo "✅ Every tool registration includes title, inputSchema, outputSchema, and matching JSON/structured output"
+    else
+        echo "⚠️  MCP v2 tools should declare outputSchema and return structuredContent with matching JSON text; title and inputSchema are also required"
+        ((WARNINGS += 1))
+    fi
+
+    if [[ "$MCP_ERROR_MISSING" -eq 0 ]]; then
+        echo "✅ Every tool handler represents expected failures with MCP isError results"
+    else
+        echo "⚠️  Tool handlers should return isError: true for expected input, configuration, and upstream failures"
+        ((WARNINGS += 1))
+    fi
+
+    if [[ "$MCP_ANNOTATION_MISSING" -eq 0 ]]; then
+        echo "✅ Every tool annotation declares readOnlyHint and destructiveHint"
+    else
+        echo "⚠️  Tool annotations should explicitly declare readOnlyHint and destructiveHint"
+        ((WARNINGS += 1))
+    fi
+fi
+
+if [[ "$SERVER_TYPE" == "typescript" && -f "$REPO_ROOT/.github/workflows/$RELEASE_WORKFLOW" && -f "$REPO_ROOT/server.json" ]]; then
+    RELEASE_PATH="$REPO_ROOT/.github/workflows/$RELEASE_WORKFLOW"
+    MCP_REGISTRY_JOB="$(awk '
+        /^  mcp-registry-publish:/ { in_registry_job = 1 }
+        in_registry_job && /^  [[:alnum:]_-]+:/ && $1 != "mcp-registry-publish:" { exit }
+        in_registry_job { print }
+    ' "$RELEASE_PATH")"
+    if [[ -n "$MCP_REGISTRY_JOB" ]] && grep -q 'needs: \[release-please, npm-publish\]' <<< "$MCP_REGISTRY_JOB" && grep -q 'mcp-publisher login github-oidc' <<< "$MCP_REGISTRY_JOB"; then
+        echo "✅ MCP Registry publication is coupled to successful npm publication"
+    else
+        echo "⚠️  Release workflow should publish the registry manifest after npm publication using GitHub OIDC"
+        ((WARNINGS += 1))
+    fi
+fi
+
 if [[ -f "$REPO_ROOT/README.md" ]]; then
     # Check for Support section
     if grep -qi '^##.*support' "$REPO_ROOT/README.md"; then
@@ -619,7 +670,8 @@ echo "----------------------"
 
 # Check for potential secrets
 if [[ -d "$PACKAGE_ROOT/src" ]]; then
-    if grep -rE '(api_key|apikey|password|secret|token)\s*[:=]\s*["\x27][^"\x27]{8,}["\x27]' "$PACKAGE_ROOT/src" 2>/dev/null | grep -v '.env' > /dev/null; then
+    SECRET_ASSIGNMENT_PATTERN="(api_key|apikey|password|secret|token)[[:space:]]*[:=][[:space:]]*[\"'][^\"']{8,}[\"']"
+    if grep -rE --exclude='*.test.*' --exclude='*.spec.*' --exclude='.env*' "$SECRET_ASSIGNMENT_PATTERN" "$PACKAGE_ROOT/src" > /dev/null 2>&1; then
         echo "⚠️  Potential hardcoded secrets found"
         ((WARNINGS += 1))
     else

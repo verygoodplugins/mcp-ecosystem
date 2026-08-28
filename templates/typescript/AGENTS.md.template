@@ -22,7 +22,8 @@ npm run format         # Format source files with Prettier
 - Register tools with `McpServer.registerTool` and Zod schemas.
 - Keep protocol traffic on stdout only. Send diagnostics to stderr; do not use
   `console.log`, `console.info`, or `console.debug` in server code.
-- Validate required configuration at startup, but never log credential values.
+- Validate required configuration lazily inside tool execution so `tools/list`
+  remains available without credentials; never log credential values.
 - Keep API access behind a focused client module and test it with mocked
   responses.
 - Before opening a change, run `npm run lint`, `npm run build`, and `npm test`.

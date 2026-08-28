@@ -13,6 +13,8 @@ import {
   writeManagedFiles,
 } from "../lib/ecosystem-config.mjs";
 
+const typescriptServerTemplate = "templates/typescript/src/index.ts.template";
+
 function assertNoVersionUpdateWildcardGroup(dependabotConfig) {
   const groupsSection =
     dependabotConfig.match(
@@ -158,6 +160,26 @@ test("renders a stable single-node TypeScript CI check and scoped npm Dependabot
   assert.match(dependabot, /test-tooling-minor-patch:/);
   assert.doesNotMatch(dependabot, /\n    ignore:\n/);
   assertNoVersionUpdateWildcardGroup(dependabot);
+});
+
+test("TypeScript starter models safe MCP v2 tool contracts", () => {
+  const template = fs.readFileSync(typescriptServerTemplate, "utf8");
+  const agentTemplate = fs.readFileSync(
+    path.resolve("templates/typescript/AGENTS.md.template"),
+    "utf8",
+  );
+
+  assert.match(template, /serveStdio\(/);
+  assert.match(template, /title:/);
+  assert.match(template, /inputSchema:/);
+  assert.match(template, /outputSchema:/);
+  assert.match(template, /structuredContent:/);
+  assert.match(template, /isError: true/);
+  assert.match(template, /readOnlyHint: true/);
+  assert.match(template, /function requireApiKey\(\): string/);
+  assert.match(template, /async \(\{ query \}\) => \{[\s\S]*?requireApiKey\(\);/);
+  assert.match(agentTemplate, /Validate required configuration lazily/);
+  assert.doesNotMatch(agentTemplate, /configuration at startup/);
 });
 
 test("renders GitHub Packages mirror publish job for TypeScript releases", () => {
