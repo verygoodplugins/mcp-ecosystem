@@ -124,7 +124,7 @@ test("Jest and smoke inventory profiles do not rewrite compiler or linter packag
     },
   };
 
-  for (const name of ["mcp-evernote", "mcp-local-wp", "mcp-edd"]) {
+  for (const name of ["mcp-evernote", "mcp-edd"]) {
     const server = getServerConfig(name);
     const baseline = buildManagedBaseline(
       server,
@@ -134,16 +134,11 @@ test("Jest and smoke inventory profiles do not rewrite compiler or linter packag
     assert.deepEqual(baseline.devDependencies, {}, name);
   }
 
-  const toggl = getServerConfig("mcp-toggl");
-  const vitestBaseline = buildManagedBaseline(
-    toggl,
-    resolveServerProfiles(toggl),
-    templatePackageJson,
-  );
-  assert.deepEqual(
-    vitestBaseline.devDependencies,
-    templatePackageJson.devDependencies,
-  );
+  for (const name of ["mcp-toggl", "mcp-local-wp"]) {
+    const server = getServerConfig(name);
+    const baseline = buildManagedBaseline(server, resolveServerProfiles(server), templatePackageJson);
+    assert.deepEqual(baseline.devDependencies, templatePackageJson.devDependencies, name);
+  }
 });
 
 test("python baseline sync updates managed dependencies via parsed toml", () => {
