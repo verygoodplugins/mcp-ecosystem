@@ -25,10 +25,7 @@
         "install.sh",
         "env.example"
       ],
-      "allowOverrides": [
-        "eslintConfig",
-        "vitestConfig"
-      ],
+      "allowOverrides": ["eslintConfig", "vitestConfig"],
       "docsDispatch": {
         "repository": "verygoodplugins/automem-website",
         "eventType": "docs-update",
@@ -54,15 +51,8 @@
       "securityProfile": "strict",
       "templateTier": "compatible",
       "propagate": true,
-      "allowOverrides": [
-        "eslintConfig",
-        "vitestConfig"
-      ],
-      "integrationTestSecrets": [
-        "EDD_API_URL",
-        "EDD_API_KEY",
-        "EDD_API_TOKEN"
-      ],
+      "allowOverrides": ["eslintConfig", "vitestConfig"],
+      "integrationTestSecrets": ["EDD_API_URL", "EDD_API_KEY", "EDD_API_TOKEN"],
       "description": "Easy Digital Downloads sales, customer, product, and analytics tools",
       "github": "https://github.com/verygoodplugins/mcp-edd",
       "npm": "@verygoodplugins/mcp-edd",
@@ -110,10 +100,7 @@
       "securityProfile": "strict",
       "templateTier": "compatible",
       "propagate": true,
-      "integrationTestSecrets": [
-        "FREESCOUT_URL",
-        "FREESCOUT_API_KEY"
-      ],
+      "integrationTestSecrets": ["FREESCOUT_URL", "FREESCOUT_API_KEY"],
       "description": "FreeScout helpdesk ticket management",
       "github": "https://github.com/verygoodplugins/mcp-freescout",
       "npm": "@verygoodplugins/mcp-freescout",
@@ -134,10 +121,7 @@
       "securityProfile": "strict",
       "templateTier": "compatible",
       "propagate": true,
-      "allowOverrides": [
-        "eslintConfig",
-        "vitestConfig"
-      ],
+      "allowOverrides": ["eslintConfig", "vitestConfig"],
       "description": "WordPress database access via Local by Flywheel",
       "github": "https://github.com/verygoodplugins/mcp-local-wp",
       "npm": "@verygoodplugins/mcp-local-wp",
@@ -158,9 +142,7 @@
       "securityProfile": "strict",
       "templateTier": "compatible",
       "propagate": true,
-      "allowedPackageFiles": [
-        "server.json"
-      ],
+      "allowedPackageFiles": ["server.json"],
       "description": "Pirsch Analytics integration",
       "github": "https://github.com/verygoodplugins/mcp-pirsch",
       "npm": "@verygoodplugins/mcp-pirsch",
@@ -181,13 +163,8 @@
       "securityProfile": "strict",
       "templateTier": "compatible",
       "propagate": true,
-      "allowedPackageFiles": [
-        "docs/images/*.svg"
-      ],
-      "allowOverrides": [
-        "eslintConfig",
-        "vitestConfig"
-      ],
+      "allowedPackageFiles": ["docs/images/*.svg"],
+      "allowOverrides": ["eslintConfig", "vitestConfig"],
       "description": "Toggl Track time tracking integration",
       "github": "https://github.com/verygoodplugins/mcp-toggl",
       "npm": "@verygoodplugins/mcp-toggl",
@@ -229,29 +206,16 @@
       "securityProfile": "bandit-root-go",
       "templateTier": "compatible",
       "propagate": true,
-      "coverageTargets": [
-        "main",
-        "whatsapp",
-        "audio"
-      ],
+      "coverageTargets": ["main", "whatsapp", "audio"],
       "banditTarget": ".",
       "goPackagePath": "whatsapp-bridge",
       "goVersion": "1.25",
       "versionCheckScript": ".github/scripts/check_versions.py",
       "dependabot": {
         "ecosystems": [
-          {
-            "packageEcosystem": "pip",
-            "directory": "/whatsapp-mcp-server"
-          },
-          {
-            "packageEcosystem": "gomod",
-            "directory": "/whatsapp-bridge"
-          },
-          {
-            "packageEcosystem": "github-actions",
-            "directory": "/"
-          }
+          { "packageEcosystem": "pip", "directory": "/whatsapp-mcp-server" },
+          { "packageEcosystem": "gomod", "directory": "/whatsapp-bridge" },
+          { "packageEcosystem": "github-actions", "directory": "/" }
         ]
       },
       "description": "WhatsApp messaging integration",
@@ -274,9 +238,7 @@
       "securityProfile": "bandit-root",
       "templateTier": "compatible",
       "propagate": true,
-      "coverageTargets": [
-        "."
-      ],
+      "coverageTargets": ["."],
       "banditTarget": ".",
       "description": "Elgato Stream Deck USB control",
       "github": "https://github.com/verygoodplugins/streamdeck-mcp",
@@ -298,9 +260,7 @@
       "securityProfile": "strict",
       "templateTier": "compatible",
       "propagate": true,
-      "coverageTargets": [
-        "."
-      ],
+      "coverageTargets": ["."],
       "description": "Read-only Robinhood portfolio research tools",
       "github": "https://github.com/verygoodplugins/robinhood-mcp",
       "pypi": null,
