@@ -452,9 +452,9 @@ test("inventory assigns CI profiles that match each downstream test command", ()
       coverageCommand: "npm run test:coverage",
     },
     "mcp-local-wp": {
-      id: "ts-node-smoke",
-      requiredScripts: ["lint", "build", "test"],
-      coverageCommand: undefined,
+      id: "ts-vitest",
+      requiredScripts: ["lint", "build", "test", "test:coverage"],
+      coverageCommand: "npm run test:coverage",
     },
     "mcp-edd": {
       id: "ts-jest-integration",
