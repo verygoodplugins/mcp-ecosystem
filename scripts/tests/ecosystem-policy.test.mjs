@@ -139,7 +139,7 @@ test("renders a stable single-node TypeScript CI check and scoped npm Dependabot
   );
   assert.match(
     ci,
-    /actions\/setup-node@820762786026740c76f36085b0efc47a31fe5020/,
+    /actions\/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1/,
   );
   assert.doesNotMatch(ci, /matrix:/);
   assert.doesNotMatch(ci, /matrix\.node-version/);
@@ -158,6 +158,16 @@ test("renders a stable single-node TypeScript CI check and scoped npm Dependabot
   assert.match(dependabot, /eslint-minor-patch:/);
   assert.match(dependabot, /typescript-minor-patch:/);
   assert.match(dependabot, /test-tooling-minor-patch:/);
+  const vitestGroup = dependabot.match(
+    /      vitest-updates:\n([\s\S]*?)(?=^      [a-z])/m,
+  )[1];
+  assert.match(vitestGroup, /"@vitest\/\*"/);
+  assert.match(vitestGroup, /"vitest"/);
+  assert.match(vitestGroup, /"major"\n\s+- "minor"\n\s+- "patch"/);
+  const otherTestGroup = dependabot.match(
+    /      test-tooling-minor-patch:\n([\s\S]*?)(?=^      [a-z])/m,
+  )[1];
+  assert.doesNotMatch(otherTestGroup, /vitest/);
   assert.doesNotMatch(dependabot, /\n    ignore:\n/);
   assertNoVersionUpdateWildcardGroup(dependabot);
 });
@@ -177,7 +187,10 @@ test("TypeScript starter models safe MCP v2 tool contracts", () => {
   assert.match(template, /isError: true/);
   assert.match(template, /readOnlyHint: true/);
   assert.match(template, /function requireApiKey\(\): string/);
-  assert.match(template, /async \(\{ query \}\) => \{[\s\S]*?requireApiKey\(\);/);
+  assert.match(
+    template,
+    /async \(\{ query \}\) => \{[\s\S]*?requireApiKey\(\);/,
+  );
   assert.match(agentTemplate, /Validate required configuration lazily/);
   assert.doesNotMatch(agentTemplate, /configuration at startup/);
 });
@@ -206,11 +219,11 @@ test("renders GitHub Packages mirror publish job for TypeScript releases", () =>
   );
   assert.match(
     releaseWorkflow,
-    /actions\/setup-node@820762786026740c76f36085b0efc47a31fe5020/,
+    /actions\/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1/,
   );
   assert.match(
     releaseWorkflow,
-    /googleapis\/release-please-action@0dfd8538845b8e92600d271a895a5372865d4062/,
+    /googleapis\/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7/,
   );
   assert.match(releaseWorkflow, /permissions: \{\}/);
   assert.match(releaseWorkflow, /npm ci --ignore-scripts/);

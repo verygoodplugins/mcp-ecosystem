@@ -614,16 +614,24 @@ updates:
         update-types:
           - "minor"
           - "patch"
+      vitest-updates:
+        applies-to: version-updates
+        dependency-type: "development"
+        patterns:
+          - "@vitest/*"
+          - "vitest"
+        update-types:
+          - "major"
+          - "minor"
+          - "patch"
       test-tooling-minor-patch:
         applies-to: version-updates
         dependency-type: "development"
         patterns:
           - "@jest/*"
-          - "@vitest/*"
           - "jest"
           - "jest-*"
           - "ts-jest"
-          - "vitest"
         update-types:
           - "minor"
           - "patch"
@@ -652,10 +660,13 @@ updates:
         dependency-type: "development"
 ```
 
-For npm version updates, every grouped update must be scoped to `minor` and
-`patch`. Keep production majors and dev-tooling majors ungrouped so Dependabot
-opens individual PRs for manual review. Only the `security-updates` group may
-use a wildcard pattern that matches all packages.
+For npm version updates, groups are scoped to `minor` and `patch`, except
+`vitest-updates`: it groups `vitest` with `@vitest/*` across major, minor and
+patch releases because the runner and coverage provider require matching
+versions. Grouped Vitest major upgrades still require manual review and passing
+CI; grouping does not authorize auto-merge. Keep other production and dev-tooling
+majors ungrouped for manual review. Only the `security-updates` group may use a
+wildcard pattern that matches all packages.
 
 ### Branch Protection And Auto-Merge
 

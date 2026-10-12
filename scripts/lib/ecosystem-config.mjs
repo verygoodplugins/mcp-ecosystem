@@ -353,7 +353,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: "${nodeVersion}"
           cache: "npm"
@@ -400,7 +400,7 @@ function renderTypescriptIntegrationJob(server, ciProfile) {
         with:
           persist-credentials: false
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: "${normalizeNodeVersions(ciProfile)[0]}"
           cache: "npm"
@@ -547,7 +547,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: "24"
           cache: "npm"
@@ -716,16 +716,24 @@ function renderNpmDependabotGroups() {
     "        update-types:",
     '          - "minor"',
     '          - "patch"',
+    "      vitest-updates:",
+    "        applies-to: version-updates",
+    '        dependency-type: "development"',
+    "        patterns:",
+    '          - "@vitest/*"',
+    '          - "vitest"',
+    "        update-types:",
+    '          - "major"',
+    '          - "minor"',
+    '          - "patch"',
     "      test-tooling-minor-patch:",
     "        applies-to: version-updates",
     '        dependency-type: "development"',
     "        patterns:",
     '          - "@jest/*"',
-    '          - "@vitest/*"',
     '          - "jest"',
     '          - "jest-*"',
     '          - "ts-jest"',
-    '          - "vitest"',
     "        update-types:",
     '          - "minor"',
     '          - "patch"',
@@ -854,7 +862,7 @@ function renderTypescriptReleaseWorkflow(server, releaseProfile) {
           ref: \${{ needs.release-please.outputs.tag_name }}
           persist-credentials: false
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: "24"
           cache: "npm"
@@ -890,7 +898,7 @@ jobs:
       tag_name: \${{ steps.release.outputs.tag_name }}
       sha: \${{ steps.release.outputs.sha }}
     steps:
-      - uses: googleapis/release-please-action@0dfd8538845b8e92600d271a895a5372865d4062 # v5
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
         id: release
         with:
 ${releaseConfig}
@@ -910,7 +918,7 @@ ${releaseConfig}
           ref: \${{ needs.release-please.outputs.tag_name }}
           persist-credentials: false
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: "24"
           registry-url: "https://registry.npmjs.org"
@@ -935,7 +943,7 @@ ${releaseConfig}
           ref: \${{ needs.release-please.outputs.tag_name }}
           persist-credentials: false
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: "24"
           registry-url: "https://npm.pkg.github.com"
@@ -971,7 +979,7 @@ function renderTypescriptMcpRegistryPublishJob(server) {
           ref: \${{ needs.release-please.outputs.tag_name }}
           persist-credentials: false
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: "24"
 
@@ -1256,7 +1264,7 @@ jobs:
       tag_name: \${{ steps.release.outputs.tag_name }}
       sha: \${{ steps.release.outputs.sha }}
     steps:
-      - uses: googleapis/release-please-action@0dfd8538845b8e92600d271a895a5372865d4062 # v5
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
         id: release
         with:
           token: \${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}

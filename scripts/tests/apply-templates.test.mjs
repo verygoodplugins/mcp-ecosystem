@@ -140,7 +140,7 @@ test('propagation workflow pins token-bearing setup actions to full SHAs', () =>
   );
   assert.match(
     workflow,
-    /actions\/setup-node@820762786026740c76f36085b0efc47a31fe5020/,
+    /actions\/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1/,
   );
 });
 
