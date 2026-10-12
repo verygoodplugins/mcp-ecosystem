@@ -671,6 +671,12 @@ function renderDependabotUpdate(server, ecosystem) {
   ];
 
   if (ecosystem.packageEcosystem === "npm") {
+    lines.push(
+      "    ignore:",
+      '      - dependency-name: "@types/node"',
+      "        update-types:",
+      '          - "version-update:semver-major"',
+    );
     lines.push(...renderNpmDependabotGroups());
   }
 

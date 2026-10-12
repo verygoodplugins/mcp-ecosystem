@@ -168,7 +168,10 @@ test("renders a stable single-node TypeScript CI check and scoped npm Dependabot
     /      test-tooling-minor-patch:\n([\s\S]*?)(?=^      [a-z])/m,
   )[1];
   assert.doesNotMatch(otherTestGroup, /vitest/);
-  assert.doesNotMatch(dependabot, /\n    ignore:\n/);
+  const ignores = dependabot.match(/\n    ignore:\n([\s\S]*?)\n    groups:/)[1];
+  assert.match(ignores, /dependency-name: "@types\/node"/);
+  assert.match(ignores, /"version-update:semver-major"/);
+  assert.equal((ignores.match(/dependency-name:/g) ?? []).length, 1);
   assertNoVersionUpdateWildcardGroup(dependabot);
 });
 
