@@ -118,7 +118,7 @@ server-name/
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/node": "^26.2.0",
+    "@types/node": "^24.19.2",
     "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^10.8.1",
     "eslint-config-prettier": "^10.1.8",
@@ -581,6 +581,10 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    ignore:
+      - dependency-name: "@types/node"
+        update-types:
+          - "version-update:semver-major"
     groups:
       # npm / TypeScript
       security-updates:
@@ -659,6 +663,10 @@ updates:
       dev-dependencies:
         dependency-type: "development"
 ```
+
+Keep `@types/node` on the declared runtime/CI major. Dependabot ignores major
+updates for that dependency; change its major deliberately when changing the
+runtime floor. Minor and patch declaration updates remain eligible.
 
 For npm version updates, groups are scoped to `minor` and `patch`, except
 `vitest-updates`: it groups `vitest` with `@vitest/*` across major, minor and
