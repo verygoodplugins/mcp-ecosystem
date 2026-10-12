@@ -175,6 +175,20 @@ test("renders a stable single-node TypeScript CI check and scoped npm Dependabot
   assertNoVersionUpdateWildcardGroup(dependabot);
 });
 
+test("TypeScript starter declarations match its runtime and CI major", () => {
+  const starter = JSON.parse(
+    fs.readFileSync("templates/typescript/package.json.template", "utf8"),
+  );
+  const runtimeMajor = starter.engines.node.match(/\d+/)[0];
+  const declarationMajor =
+    starter.devDependencies["@types/node"].match(/\d+/)[0];
+  assert.equal(declarationMajor, runtimeMajor);
+  assert.equal(
+    getPolicy().ciProfiles["ts-vitest"].nodeVersions[0],
+    runtimeMajor,
+  );
+});
+
 test("TypeScript starter models safe MCP v2 tool contracts", () => {
   const template = fs.readFileSync(typescriptServerTemplate, "utf8");
   const agentTemplate = fs.readFileSync(
