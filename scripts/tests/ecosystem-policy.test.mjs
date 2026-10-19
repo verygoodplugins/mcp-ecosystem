@@ -110,6 +110,18 @@ test("renders monorepo python managed files from inventory-style config", () => 
     files[".github/workflows/dependabot-auto-merge.yml"],
     /github\.event\.workflow_run\.event == 'pull_request_target'/,
   );
+  // `secrets: inherit` is load-bearing: a called workflow only receives the secrets
+  // its caller forwards, so an explicit `GH_TOKEN:` mapping withholds the GitHub App
+  // secrets the reusable workflow mints its merge token from, and auto-merge silently
+  // stops triggering push-triggered workflows.
+  assert.match(
+    files[".github/workflows/dependabot-auto-merge.yml"],
+    /secrets: inherit/,
+  );
+  assert.doesNotMatch(
+    files[".github/workflows/dependabot-auto-merge.yml"],
+    /GH_TOKEN: \$\{\{ secrets\.GH_TOKEN \}\}/,
+  );
 });
 
 test("renders a stable single-node TypeScript CI check and scoped npm Dependabot groups", () => {

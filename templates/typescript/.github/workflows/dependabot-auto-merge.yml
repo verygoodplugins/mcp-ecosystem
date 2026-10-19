@@ -31,5 +31,10 @@ jobs:
         )
       }}
     uses: verygoodplugins/.github/.github/workflows/dependabot-auto-merge.yml@main
-    secrets:
-      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+    # `secrets: inherit`, not an explicit `GH_TOKEN:` mapping. A called workflow only
+    # receives the secrets its caller forwards, and the reusable workflow mints a
+    # GitHub App token from AUTOMERGE_APP_CLIENT_ID / AUTOMERGE_APP_PRIVATE_KEY.
+    # Listing GH_TOKEN alone silently withholds those, and the job then runs degraded:
+    # auto-merge still works, but GitHub does not start push-triggered workflows (CI,
+    # Release Please, security scans) from a merge GITHUB_TOKEN performed.
+    secrets: inherit

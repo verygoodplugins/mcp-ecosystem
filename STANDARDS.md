@@ -565,11 +565,13 @@ Example:
    - Dependency vulnerability scanning
 
 6. **dependabot-auto-merge.yml** - Approves safe Dependabot PRs and enables GitHub auto-merge
-   - Runs on `pull_request_target` with a caller-side `github.event.pull_request.user.login == 'dependabot[bot]'` guard
-   - Explicitly scopes permissions to `contents: write` and `pull-requests: write`
+   - Runs on `pull_request_target` plus a `workflow_run` retry pass, with a caller-side `github.event.pull_request.user.login == 'dependabot[bot]'` guard
+   - Gate on the PR **author**, never `github.actor`: the actor is whoever triggered the run, so an actor guard wrongly skips the job when a maintainer reopens a Dependabot PR
+   - Must pass `secrets: inherit`. A called workflow only receives the secrets its caller forwards, so an explicit `GH_TOKEN:` mapping withholds the App-token secrets and the job runs degraded
+   - Must not narrow `permissions:` below `contents: write` + `pull-requests: write`. A callee cannot hold a permission its caller lacks, and exceeding it is a **startup failure** before any step runs
    - Uses CI + org rulesets as the safety gate
    - Thin stub that delegates all logic to the reusable workflow at [`verygoodplugins/.github`](https://github.com/verygoodplugins/.github/blob/main/.github/workflows/dependabot-auto-merge.yml)
-   - Auto-merges non-major updates after required checks pass
+   - Auto-merges `semver-patch` and `semver-minor` updates after required checks pass
    - Major updates always require manual review
 
 ### Dependabot Configuration
@@ -746,6 +748,9 @@ layer.
 - vulnerability alerts enabled
 - automated security fixes enabled
 - `.github/workflows/dependabot-auto-merge.yml`
+- `AUTOMERGE_APP_CLIENT_ID` and `AUTOMERGE_APP_PRIVATE_KEY` reachable as **both**
+  Actions and Dependabot secrets (set once at org level), and the auto-merge
+  GitHub App installed on the repo — see **Auto-merge policy** below
 
 Apply those per-repo settings with
 `./scripts/configure-github-defaults.sh <repo-slug|repo-name|path>`.
@@ -758,12 +763,88 @@ The canonical logic lives in [`verygoodplugins/.github/.github/workflows/dependa
 
 | Update type                       | Policy    |
 | --------------------------------- | --------- |
-| Non-major — any ecosystem         | ✅ auto   |
+| `semver-patch` — any ecosystem    | ✅ auto   |
+| `semver-minor` — any ecosystem    | ✅ auto   |
 | Security update — any non-major   | ✅ auto   |
 | Major — any ecosystem             | ❌ manual |
+| No reported update type           | ❌ manual |
+
+Patch and minor are an **allowlist**, not "anything but major". A bump whose
+update type Dependabot does not report — metadata unavailable, or a non-semver
+ecosystem — is left for a human rather than merged by default. The workflow logs
+the reason it declined, so the symptom is visible rather than silent.
 
 The reusable workflow also applies `dependencies` plus either `automerge` or
-`needs-human-review` so Dependabot queues stay auditable at a glance.
+`needs-human-review` so Dependabot queues stay auditable at a glance. The
+`automerge` label is applied for patch and minor only, because the `workflow_run`
+retry pass arms off that label instead of Dependabot metadata — the label has to
+mean exactly what the arm gate means.
+
+**The workflow merges with a GitHub App token, not `GITHUB_TOKEN`.** This is a
+hard requirement, not a preference. GitHub does not start new workflow runs from
+events caused by `GITHUB_TOKEN`, and that extends to the merge an auto-merge it
+armed performs. Measured on `mcp-automem`: three bumps auto-merged under
+`GITHUB_TOKEN` each produced **0** `event=push` workflow runs, while the human
+merges either side each produced **4** — CI, Release Please, Docs Dispatch and
+Security. So auto-merged bumps silently skipped the release-PR update, the
+push-to-main CI run that is the only thing testing bumps *in combination*, and
+the scheduled security scans.
+
+```bash
+gh api "repos/OWNER/REPO/actions/runs?head_sha=SHA&event=push" --jq '.total_count'
+```
+
+Filter on `event=push`. A bare total is misleading: a Dependabot merge commit
+reports its own `event=dynamic` update runs attached to the default branch.
+
+Setup, once at org level:
+
+- A GitHub App installed across the org, granted **Contents RW, Pull requests RW,
+  Issues RW, Workflows RW, Metadata R**. `actions/create-github-app-token` scopes
+  the token it mints to its `permission-*` inputs, and requesting a permission the
+  installation lacks fails the mint outright — so the App grants must be at least
+  as wide as the workflow asks for. Workflows RW is required by any repo whose
+  `dependabot.yml` includes the `github-actions` ecosystem; without it a bump
+  touching `.github/workflows/` cannot be merged.
+- `AUTOMERGE_APP_CLIENT_ID` and `AUTOMERGE_APP_PRIVATE_KEY` as **Actions secrets
+  and Dependabot secrets**. Both stores are needed: the job runs as Dependabot on
+  `opened`/`synchronize` and as a maintainer on `reopened`, and if secret
+  resolution depends on the actor those paths read different stores.
+- Every stub using `secrets: inherit`, or the App secrets never reach the callee.
+
+If the token cannot be minted the workflow **degrades rather than breaking**: it
+falls back to `GH_TOKEN`/`github.token`, emits a warning annotation and a step
+summary, and keeps auto-merging. Auto-merge still works; only the
+downstream-trigger fix is lost. The cancel step keeps that same fallback by
+design — if minting fails, every other step is skipped by the implicit
+`success()` while cancel still runs on `!cancelled()`, and with an empty token
+`gh` would fail on auth and leave an already-armed auto-merge to fire.
+
+**Safety properties of the reusable workflow** (change these only deliberately):
+
+- **Commit provenance.** Auto-merge is armed only when every commit on the PR head
+  is authored by `dependabot[bot]`, checked paginated and failing closed on an
+  unattributed commit (no login). Eligibility comes from who wrote the commits,
+  not who triggered the run — GitHub only cancels auto-merge itself for pushes by
+  users *without* write access, so a maintainer's push would otherwise ride in on
+  an earlier arm. Provenance runs on the `workflow_run` pass too, or a human push
+  followed by a green CI run would re-arm off the stale `automerge` label.
+- **Per-PR `concurrency` group with `cancel-in-progress`.** Without it, two
+  overlapping `synchronize` runs can interleave so the older one re-arms against a
+  head it never validated.
+- **An explicit cancel step**, which disarms auto-merge when a human commit lands
+  or a rebase turns the bump into a major. It runs on `pull_request_target` only: a
+  `workflow_run` completion reports that CI finished, not that anything changed, so
+  it has nothing to revoke — and letting it cancel would disarm a good bump whose
+  labelling run the concurrency group had just cancelled.
+- **`!cancelled()` on that cancel step.** A custom `if:` otherwise carries an
+  implicit `success() &&`, so a provenance or metadata failure would skip the
+  cancel and leave auto-merge armed — failing open, which is the opposite of what
+  the provenance check is for.
+- **One eligibility gate** that both the arm and cancel steps derive from, so the
+  two cannot disagree. A cancel condition written as the textual inverse of the arm
+  condition has to be re-inverted correctly every time either changes, and on the
+  `workflow_run` path the arm inputs do not exist at all.
 
 Required checks should target raw GitHub Actions check-run contexts, not the UI
 label. For example, require `build-test` or `test` from the GitHub Actions app,
