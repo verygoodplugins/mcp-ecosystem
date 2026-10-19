@@ -566,7 +566,7 @@ Example:
 
 6. **dependabot-auto-merge.yml** - Approves safe Dependabot PRs and enables GitHub auto-merge
    - Runs on `pull_request_target` plus a `workflow_run` retry pass, with a caller-side `github.event.pull_request.user.login == 'dependabot[bot]'` guard
-   - Gate on the PR **author**, never `github.actor`: the actor is whoever triggered the run, so an actor guard wrongly skips the job when a maintainer reopens a Dependabot PR
+   - Gate on the PR **author**, never `github.actor` — but only once the reusable workflow carries the commit-provenance check (see below). The actor is whoever triggered the run, so an actor guard skips the job when a maintainer reopens or pushes to a Dependabot PR, which stops the head being re-evaluated at all
    - Must forward `GH_TOKEN`, `AUTOMERGE_APP_CLIENT_ID` and `AUTOMERGE_APP_PRIVATE_KEY` explicitly. A called workflow only receives the secrets its caller forwards, so mapping `GH_TOKEN` alone withholds the App-token secrets and the job runs degraded. Not `secrets: inherit` — that hands every caller-accessible secret to a workflow tracked at a mutable `@main`
    - Must not narrow `permissions:` below `contents: write` + `pull-requests: write`. A callee cannot hold a permission its caller lacks, and exceeding it is a **startup failure** before any step runs
    - Uses CI + org rulesets as the safety gate
@@ -848,6 +848,16 @@ design — if minting fails, every other step is skipped by the implicit
 
 **Safety properties of the reusable workflow** (change these only deliberately):
 
+- **The `github.actor` guard is superseded by provenance, and only by provenance.** Some
+  repo stubs (`streamdeck-mcp`, `mcp-toggl`, `whatsapp-mcp`) carry
+  `github.actor == 'dependabot[bot]'` alongside the author check. That was **deliberate
+  caller-side `pull_request_target` hardening**, added to the templates in May 2026 after
+  Copilot review of mcp-ecosystem PR #25 — not an oversight, and not to be removed
+  casually or re-added blindly. It is safe to drop only because the reusable workflow now
+  decides eligibility from who *authored the commits*, which is strictly stronger than who
+  triggered the run. So the ordering matters: a stub keeps its actor guard until the
+  reusable workflow it calls carries the provenance check below. Since the stubs track
+  `@main`, that means merging the provenance change before propagating stub updates.
 - **Commit provenance.** Auto-merge is armed only when every commit on the PR head
   matches an allowlist of `author/committer/verified` triples — `dependabot[bot]`
   authored, committed by `dependabot[bot]` or `web-flow`, and carrying a valid
