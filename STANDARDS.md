@@ -794,8 +794,9 @@ armed performs. Measured on `mcp-automem`, where the swap has shipped and run:
 | d2a2660, 06f6fb1 | human | **4** |
 
 So auto-merged bumps silently skipped the release-PR update, the push-to-main CI
-run that is the only thing testing bumps *in combination*, and the scheduled
-security scans. `7b45e959` is the end-to-end proof: an auto-merge armed by the App
+run that is the only thing testing bumps *in combination*, and the push-triggered
+security scan — not the weekly one, which runs off an independent `schedule` trigger
+and was never affected. `7b45e959` is the end-to-end proof: an auto-merge armed by the App
 and merged by `vgp-dependabot-auto-merge[bot]`, where identical `GITHUB_TOKEN`
 auto-merges had produced nothing.
 
