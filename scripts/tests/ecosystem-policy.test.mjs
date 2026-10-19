@@ -110,17 +110,26 @@ test("renders monorepo python managed files from inventory-style config", () => 
     files[".github/workflows/dependabot-auto-merge.yml"],
     /github\.event\.workflow_run\.event == 'pull_request_target'/,
   );
-  // `secrets: inherit` is load-bearing: a called workflow only receives the secrets
-  // its caller forwards, so an explicit `GH_TOKEN:` mapping withholds the GitHub App
-  // secrets the reusable workflow mints its merge token from, and auto-merge silently
-  // stops triggering push-triggered workflows.
-  assert.match(
-    files[".github/workflows/dependabot-auto-merge.yml"],
-    /secrets: inherit/,
-  );
+  // All three secrets must be forwarded: a called workflow only receives what its
+  // caller passes, so forwarding GH_TOKEN alone withholds the GitHub App secrets the
+  // reusable workflow mints its merge token from, and auto-merge silently stops
+  // triggering push-triggered workflows.
+  for (const secret of [
+    "GH_TOKEN",
+    "AUTOMERGE_APP_CLIENT_ID",
+    "AUTOMERGE_APP_PRIVATE_KEY",
+  ]) {
+    assert.match(
+      files[".github/workflows/dependabot-auto-merge.yml"],
+      new RegExp(`${secret}: \\$\\{\\{ secrets\\.${secret} \\}\\}`),
+    );
+  }
+  // Explicitly, never as an inherit directive: that would expose every
+  // caller-accessible secret to a reusable workflow tracked at a mutable @main.
+  // Anchored to a directive line so the comment explaining this does not match.
   assert.doesNotMatch(
     files[".github/workflows/dependabot-auto-merge.yml"],
-    /GH_TOKEN: \$\{\{ secrets\.GH_TOKEN \}\}/,
+    /^\s*secrets: inherit\s*$/m,
   );
 });
 

@@ -567,7 +567,7 @@ Example:
 6. **dependabot-auto-merge.yml** - Approves safe Dependabot PRs and enables GitHub auto-merge
    - Runs on `pull_request_target` plus a `workflow_run` retry pass, with a caller-side `github.event.pull_request.user.login == 'dependabot[bot]'` guard
    - Gate on the PR **author**, never `github.actor`: the actor is whoever triggered the run, so an actor guard wrongly skips the job when a maintainer reopens a Dependabot PR
-   - Must pass `secrets: inherit`. A called workflow only receives the secrets its caller forwards, so an explicit `GH_TOKEN:` mapping withholds the App-token secrets and the job runs degraded
+   - Must forward `GH_TOKEN`, `AUTOMERGE_APP_CLIENT_ID` and `AUTOMERGE_APP_PRIVATE_KEY` explicitly. A called workflow only receives the secrets its caller forwards, so mapping `GH_TOKEN` alone withholds the App-token secrets and the job runs degraded. Not `secrets: inherit` — that hands every caller-accessible secret to a workflow tracked at a mutable `@main`
    - Must not narrow `permissions:` below `contents: write` + `pull-requests: write`. A callee cannot hold a permission its caller lacks, and exceeding it is a **startup failure** before any step runs
    - Uses CI + org rulesets as the safety gate
    - Thin stub that delegates all logic to the reusable workflow at [`verygoodplugins/.github`](https://github.com/verygoodplugins/.github/blob/main/.github/workflows/dependabot-auto-merge.yml)
@@ -814,7 +814,21 @@ Setup, once at org level:
   and Dependabot secrets**. Both stores are needed: the job runs as Dependabot on
   `opened`/`synchronize` and as a maintainer on `reopened`, and if secret
   resolution depends on the actor those paths read different stores.
-- Every stub using `secrets: inherit`, or the App secrets never reach the callee.
+- Every stub forwarding all three secrets explicitly, or the App secrets never reach
+  the callee:
+
+  ```yaml
+      secrets:
+        GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        AUTOMERGE_APP_CLIENT_ID: ${{ secrets.AUTOMERGE_APP_CLIENT_ID }}
+        AUTOMERGE_APP_PRIVATE_KEY: ${{ secrets.AUTOMERGE_APP_PRIVATE_KEY }}
+  ```
+
+  Not `secrets: inherit`. It would solve the forwarding problem, but it passes *every*
+  caller-accessible secret — npm and registry tokens, deployment credentials — to a
+  reusable workflow the stubs track at `@main`, which can change without review in the
+  consuming repo. A secret a repo has not set forwards as empty, which is the intended
+  degrade path rather than an error.
 
 A stub that pins the reusable workflow to an immutable SHA rather than `@main`
 (`emmail` does, deliberately, so privileged write access cannot track a floating
