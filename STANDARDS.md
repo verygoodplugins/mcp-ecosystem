@@ -565,11 +565,13 @@ Example:
    - Dependency vulnerability scanning
 
 6. **dependabot-auto-merge.yml** - Approves safe Dependabot PRs and enables GitHub auto-merge
-   - Runs on `pull_request_target` with a caller-side `github.event.pull_request.user.login == 'dependabot[bot]'` guard
-   - Explicitly scopes permissions to `contents: write` and `pull-requests: write`
+   - Runs on `pull_request_target` plus a `workflow_run` retry pass, with a caller-side `github.event.pull_request.user.login == 'dependabot[bot]'` guard
+   - Gate on the PR **author**, never `github.actor` — but only once the reusable workflow carries the commit-provenance check (see below). The actor is whoever triggered the run, so an actor guard skips the job when a maintainer reopens or pushes to a Dependabot PR, which stops the head being re-evaluated at all
+   - Must forward `GH_TOKEN`, `AUTOMERGE_APP_CLIENT_ID` and `AUTOMERGE_APP_PRIVATE_KEY` explicitly. A called workflow only receives the secrets its caller forwards, so mapping `GH_TOKEN` alone withholds the App-token secrets and the job runs degraded. Not `secrets: inherit` — that hands every caller-accessible secret to a workflow tracked at a mutable `@main`
+   - Must not narrow `permissions:` below `contents: write` + `pull-requests: write`. A callee cannot hold a permission its caller lacks, and exceeding it is a **startup failure** before any step runs
    - Uses CI + org rulesets as the safety gate
    - Thin stub that delegates all logic to the reusable workflow at [`verygoodplugins/.github`](https://github.com/verygoodplugins/.github/blob/main/.github/workflows/dependabot-auto-merge.yml)
-   - Auto-merges non-major updates after required checks pass
+   - Auto-merges `semver-patch` and `semver-minor` updates after required checks pass
    - Major updates always require manual review
 
 ### Dependabot Configuration
@@ -746,6 +748,9 @@ layer.
 - vulnerability alerts enabled
 - automated security fixes enabled
 - `.github/workflows/dependabot-auto-merge.yml`
+- `AUTOMERGE_APP_CLIENT_ID` and `AUTOMERGE_APP_PRIVATE_KEY` reachable as **both**
+  Actions and Dependabot secrets (set once at org level), and the auto-merge
+  GitHub App installed on the repo — see **Auto-merge policy** below
 
 Apply those per-repo settings with
 `./scripts/configure-github-defaults.sh <repo-slug|repo-name|path>`.
@@ -758,12 +763,206 @@ The canonical logic lives in [`verygoodplugins/.github/.github/workflows/dependa
 
 | Update type                       | Policy    |
 | --------------------------------- | --------- |
-| Non-major — any ecosystem         | ✅ auto   |
+| `semver-patch` — any ecosystem    | ✅ auto   |
+| `semver-minor` — any ecosystem    | ✅ auto   |
 | Security update — any non-major   | ✅ auto   |
 | Major — any ecosystem             | ❌ manual |
+| No reported update type           | ❌ manual |
+
+Patch and minor are an **allowlist**, not "anything but major". A bump whose
+update type Dependabot does not report — metadata unavailable, or a non-semver
+ecosystem — is left for a human rather than merged by default. The workflow logs
+the reason it declined, so the symptom is visible rather than silent.
 
 The reusable workflow also applies `dependencies` plus either `automerge` or
-`needs-human-review` so Dependabot queues stay auditable at a glance.
+`needs-human-review` so Dependabot queues stay auditable at a glance. Neither is a
+manual hold: to hold a single PR by hand, close it or use `@dependabot ignore`. The
+`automerge` label is applied for patch and minor only, so that it means the same
+thing as the arm gate — but it is **not** what the `workflow_run` retry pass reads.
+That pass reads a head-bound `dependabot-auto-merge/eligible` commit status; see the
+safety properties below for why a label cannot do that job.
+
+**The workflow merges with a GitHub App token, not `GITHUB_TOKEN`.** This is a
+hard requirement, not a preference. GitHub does not start new workflow runs from
+events caused by `GITHUB_TOKEN`, and that extends to the merge an auto-merge it
+armed performs. Measured on `mcp-automem`, where the swap has shipped and run:
+
+| Merge | Token | `event=push` runs |
+| --- | --- | --- |
+| 5775c95, 07db972, 9ed9084 | `GITHUB_TOKEN` auto-merge | **0** |
+| 72bc31e, 7b45e959 | App token | **3** |
+| d2a2660, 06f6fb1 | human | **4** |
+
+So auto-merged bumps silently skipped the release-PR update, the push-to-main CI
+run that is the only thing testing bumps *in combination*, and the push-triggered
+security scan — not the weekly one, which runs off an independent `schedule` trigger
+and was never affected. `7b45e959` is the end-to-end proof: an auto-merge armed by the App
+and merged by `vgp-dependabot-auto-merge[bot]`, where identical `GITHUB_TOKEN`
+auto-merges had produced nothing.
+
+**Compare against 0, not against a count.** The number of push-triggered workflows
+is per-repo, and varies within a repo. The 4 above is not a baseline: `mcp-automem`
+has three workflows on `push: branches: [main]` — `ci.yml`, `release-please.yml`,
+`security.yml` — and those two human merges each also cut a release, which pulls in
+`docs-dispatch.yml` as an inherited `event=push` run through a gated
+`workflow_call` from release-please. An ordinary bump there shows **3**, and 3 is
+not a failure.
+
+```bash
+gh api "repos/OWNER/REPO/actions/runs?head_sha=SHA&event=push" --jq '.total_count'
+```
+
+Filter on `event=push`. A bare total is misleading: a Dependabot merge commit
+reports its own `event=dynamic` update runs attached to the default branch.
+
+Setup, once at org level:
+
+- A GitHub App installed across the org, granted **Contents RW, Pull requests RW,
+  Issues RW, Workflows RW, Merge queues RW, Commit statuses RW, Metadata R**. `actions/create-github-app-token` scopes
+  the token it mints to its `permission-*` inputs, and requesting a permission the
+  installation lacks fails the mint outright — so the App grants must be at least
+  as wide as the workflow asks for. Workflows RW is required by any repo whose
+  `dependabot.yml` includes the `github-actions` ecosystem; without it a bump
+  touching `.github/workflows/` cannot be merged. Merge queues RW is for the
+  enqueue path: no repo has a queue enabled today, but granting it up front means
+  turning one on is a ruleset change rather than a token change, and without it the
+  enqueue fails outright rather than degrading, because by then the mint has already
+  succeeded.
+- `AUTOMERGE_APP_CLIENT_ID` and `AUTOMERGE_APP_PRIVATE_KEY` as **Actions secrets
+  and Dependabot secrets**, in both, always. Which store a Dependabot-triggered
+  `pull_request_target` run actually reads is not worth resolving: GitHub's docs list
+  the restriction (Dependabot secrets populated, Actions secrets unavailable) for
+  `pull_request`, `pull_request_review`, `pull_request_review_comment`, `push`,
+  `create`, `deployment` and `deployment_status`, and apply it to
+  `pull_request_target` only when *the base ref of the pull request was created by
+  Dependabot* — which a bump opened against `main` is not. Empirically, mcp-automem
+  run `39327021484` (a Dependabot-triggered `pull_request_target`) minted the token
+  successfully, but the secrets were in both stores, so it does not identify which
+  one was read. Setting both costs nothing and removes the question; it is also
+  required outright if a repo ever adds a `pull_request`-triggered path.
+- Every stub forwarding all three secrets explicitly, or the App secrets never reach
+  the callee:
+
+  ```yaml
+      secrets:
+        GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        AUTOMERGE_APP_CLIENT_ID: ${{ secrets.AUTOMERGE_APP_CLIENT_ID }}
+        AUTOMERGE_APP_PRIVATE_KEY: ${{ secrets.AUTOMERGE_APP_PRIVATE_KEY }}
+  ```
+
+  Not `secrets: inherit`. It would solve the forwarding problem, but it passes *every*
+  caller-accessible secret — npm and registry tokens, deployment credentials — to a
+  reusable workflow the stubs track at `@main`, which can change without review in the
+  consuming repo. A secret a repo has not set forwards as empty, which is the intended
+  degrade path rather than an error.
+
+A stub that pins the reusable workflow to an immutable SHA rather than `@main`
+(`emmail` does, deliberately, so privileged write access cannot track a floating
+branch) does not pick up changes to the reusable workflow until that SHA is
+bumped. That is the safer posture, but it has to be bumped by hand, and `emmail`
+is not in `server-inventory.json`, so template propagation does not reach it
+either.
+
+If the token cannot be minted the workflow **degrades rather than breaking**: it
+falls back to `GH_TOKEN`/`github.token`, emits a warning annotation and a step
+summary, and keeps auto-merging. Auto-merge still works; only the
+downstream-trigger fix is lost. The cancel step keeps that same fallback by
+design — if minting fails, every other step is skipped by the implicit
+`success()` while cancel still runs on `!cancelled()`, and with an empty token
+`gh` would fail on auth and leave an already-armed auto-merge to fire.
+
+**Safety properties of the reusable workflow** (change these only deliberately):
+
+- **The `github.actor` guard is superseded by provenance, and only by provenance.** Some
+  repo stubs (`streamdeck-mcp`, `mcp-toggl`, `whatsapp-mcp`) carry
+  `github.actor == 'dependabot[bot]'` alongside the author check. That was **deliberate
+  caller-side `pull_request_target` hardening**, added to the templates in May 2026 after
+  Copilot review of mcp-ecosystem PR #25 — not an oversight, and not to be removed
+  casually or re-added blindly. It is safe to drop only because the reusable workflow now
+  decides eligibility from who *authored the commits*, which is strictly stronger than who
+  triggered the run. So the ordering matters: a stub keeps its actor guard until the
+  reusable workflow it calls carries the provenance check below. Since the stubs track
+  `@main`, that means merging the provenance change before propagating stub updates.
+- **Commit provenance.** Auto-merge is armed only when every commit on the PR head
+  matches an allowlist of `author/committer/verified` triples — `dependabot[bot]`
+  authored, committed by `dependabot[bot]` or `web-flow`, and carrying a valid
+  GitHub signature — checked paginated and failing closed on anything else.
+  All three fields are needed. The author alone is not proof of origin, because an
+  amend or cherry-pick keeps the original author while whoever rewrote it becomes
+  the committer. The committer is not either: GitHub resolves `committer.login`
+  from the committer *email*, and `web-flow` is simply the account that owns
+  `noreply@github.com`, so anyone with push access can set `GIT_COMMITTER_EMAIL`
+  to it. Only the signature cannot be forged — Dependabot's commits are created
+  through the API and signed with GitHub's own key, and a maintainer signing under
+  that email with their own key fails verification because the address is not a
+  verified email on their account.
+  Eligibility therefore comes from the commits, not from who triggered the run —
+  GitHub only cancels auto-merge itself for pushes by users *without* write access,
+  so a maintainer's push would otherwise ride in on an earlier arm. Provenance runs
+  on the `workflow_run` pass too, so a human push followed by a green CI run cannot
+  re-arm even if that head somehow carries a classification marker.
+- **Per-PR, per-event `concurrency` group with `cancel-in-progress`.** Without it,
+  two overlapping `synchronize` runs can interleave so the older one re-arms against
+  a head it never validated. The group is scoped per event as well as per PR: one
+  shared group would let a `workflow_run` CI completion cancel the
+  `pull_request_target` run that classifies the head and records its marker, and
+  since the retry pass reads that marker rather than re-deriving metadata, the PR
+  would be left unarmed — permanently so in a merge-queue repo, where the
+  `pull_request_target` path defers enqueueing to the retry.
+- **Auto-merge is disarmed before reclassification, not after.** GitHub keeps
+  auto-merge armed when the pusher has write access — it disables it automatically
+  only for pushes by users *without* write permission — so from the moment a human
+  commit or a rebase into a major lands until the job reaches its cancel step, the
+  previous head's arm is still live, and a fast green required check could merge the
+  new head before it was ever classified. The workflow therefore revokes the arm at
+  the top of every `pull_request_target` run and re-arms only once the gate passes.
+- **An explicit cancel step**, which disarms auto-merge when a human commit lands
+  or a rebase turns the bump into a major. It is now a backstop to the disarm above —
+  the step that still runs under `!cancelled()` when classification failed, and where
+  a failed best-effort disarm gets a second attempt. It runs on `pull_request_target` only: a
+  `workflow_run` completion reports that CI finished, not that anything changed, so
+  it has nothing to revoke. Head changes arrive as `synchronize` or `reopened`.
+- **Classification is recorded on the head commit, not inferred from labels.** The
+  `pull_request_target` pass writes a `dependabot-auto-merge/eligible` commit status
+  on the head SHA, and the `workflow_run` retry pass — the one path that cannot call
+  `fetch-metadata` — reads that. Labels cannot do this job twice over: they are not
+  bound to a commit, so a head that changed from a patch bump to a major could be
+  merged off the previous head's `automerge` label whenever CI finished before
+  classification relabelled (the event-scoped groups stop the runs cancelling each
+  other but do not order the write before the read); and `addLabels` on an
+  already-present label emits no timeline event, so "was it labelled recently" would
+  report a rebased patch bump as permanently unclassified. The status is only ever
+  posted as `success` and only when eligible, so it cannot appear as a red check, and
+  posting is best-effort because the degraded fallback token has no `statuses: write`.
+  The retry waits for the marker rather than refusing, because no further
+  `workflow_run` event would arrive afterwards and a merge-queue repo would never
+  enqueue, and it decides on the marker alone — consulting a label as well would put
+  arming back on mutable state.
+- **There is no manual hold label, deliberately.** `automerge` and
+  `needs-human-review` are classifier-owned and rewritten on every classification, so
+  a hold placed with either survives only until the next rebase or reopen. A dedicated
+  hold label would not be enough on its own: the stubs subscribe to `opened`,
+  `reopened`, `synchronize` and `ready_for_review`, not `labeled`, so a hold added
+  while checks were pending would go unnoticed until the head next moved — and on a
+  queue-enabled repo, disabling auto-merge does not remove an existing queue entry,
+  which needs `dequeuePullRequest`. To hold a Dependabot PR durably, close it or use
+  `@dependabot ignore`; to stop one already armed, disable auto-merge on the PR, noting
+  the next classification re-arms it.
+- **Mutually exclusive labels are kept exclusive.** Applying `automerge` or
+  `needs-human-review` removes the other one, so the pair always reports a single
+  verdict. Otherwise a PR that took a human commit and was then force-updated back to
+  a bot-only patch head would carry both at once and the queue would be unreadable at
+  a glance. Nothing in the workflow gates on these labels — that is the point of the
+  commit-status marker above — so this is about keeping the audit trail honest, not
+  about enforcement.
+- **`!cancelled()` on that cancel step.** A custom `if:` otherwise carries an
+  implicit `success() &&`, so a provenance or metadata failure would skip the
+  cancel and leave auto-merge armed — failing open, which is the opposite of what
+  the provenance check is for.
+- **One eligibility gate** that both the arm and cancel steps derive from, so the
+  two cannot disagree. A cancel condition written as the textual inverse of the arm
+  condition has to be re-inverted correctly every time either changes, and on the
+  `workflow_run` path the arm inputs do not exist at all.
 
 Required checks should target raw GitHub Actions check-run contexts, not the UI
 label. For example, require `build-test` or `test` from the GitHub Actions app,
