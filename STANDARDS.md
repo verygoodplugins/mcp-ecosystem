@@ -800,7 +800,7 @@ reports its own `event=dynamic` update runs attached to the default branch.
 Setup, once at org level:
 
 - A GitHub App installed across the org, granted **Contents RW, Pull requests RW,
-  Issues RW, Workflows RW, Merge queues RW, Metadata R**. `actions/create-github-app-token` scopes
+  Issues RW, Workflows RW, Merge queues RW, Commit statuses RW, Metadata R**. `actions/create-github-app-token` scopes
   the token it mints to its `permission-*` inputs, and requesting a permission the
   installation lacks fails the mint outright — so the App grants must be at least
   as wide as the workflow asks for. Workflows RW is required by any repo whose
@@ -877,18 +877,21 @@ design — if minting fails, every other step is skipped by the implicit
   or a rebase turns the bump into a major. It runs on `pull_request_target` only: a
   `workflow_run` completion reports that CI finished, not that anything changed, so
   it has nothing to revoke. Head changes arrive as `synchronize` or `reopened`.
-- **The retry pass's label trust is bound to the head it is merging.** The
-  `workflow_run` pass cannot call `fetch-metadata`, so it reads the classification
-  the `pull_request_target` pass recorded as labels — and labels are mutable and not
-  bound to a commit. It therefore trusts them only once the newest `automerge` or
-  `needs-human-review` labelling is at least as recent as the head commit, and
-  re-reads the labels at that point. Without this, a head that changed from a patch
-  bump to a major could be merged off the previous head's `automerge` label whenever
-  CI finished before classification had relabelled: the event-scoped concurrency
-  groups stop the two runs cancelling each other, but they do not order the label
-  write before the read. The retry waits for classification rather than refusing,
-  because no further `workflow_run` event would arrive afterwards and a merge-queue
-  repo would never enqueue.
+- **Classification is recorded on the head commit, not inferred from labels.** The
+  `pull_request_target` pass writes a `dependabot-auto-merge/eligible` commit status
+  on the head SHA, and the `workflow_run` retry pass — the one path that cannot call
+  `fetch-metadata` — reads that. Labels cannot do this job twice over: they are not
+  bound to a commit, so a head that changed from a patch bump to a major could be
+  merged off the previous head's `automerge` label whenever CI finished before
+  classification relabelled (the event-scoped groups stop the runs cancelling each
+  other but do not order the write before the read); and `addLabels` on an
+  already-present label emits no timeline event, so "was it labelled recently" would
+  report a rebased patch bump as permanently unclassified. The status is only ever
+  posted as `success` and only when eligible, so it cannot appear as a red check, and
+  posting is best-effort because the degraded fallback token has no `statuses: write`.
+  `needs-human-review` is still honoured as a manual override. The retry waits for the
+  marker rather than refusing, because no further `workflow_run` event would arrive
+  afterwards and a merge-queue repo would never enqueue.
 - **Mutually exclusive labels are kept exclusive.** Applying `automerge` or
   `needs-human-review` removes the other one. Otherwise a PR that took a human
   commit and was then force-updated back to a bot-only patch head would carry both,
