@@ -777,9 +777,10 @@ the reason it declined, so the symptom is visible rather than silent.
 The reusable workflow also applies `dependencies` plus either `automerge` or
 `needs-human-review` so Dependabot queues stay auditable at a glance. Neither is a
 manual hold: to hold a single PR by hand, close it or use `@dependabot ignore`. The
-`automerge` label is applied for patch and minor only, because the `workflow_run`
-retry pass arms off that label instead of Dependabot metadata — the label has to
-mean exactly what the arm gate means.
+`automerge` label is applied for patch and minor only, so that it means the same
+thing as the arm gate — but it is **not** what the `workflow_run` retry pass reads.
+That pass reads a head-bound `dependabot-auto-merge/eligible` commit status; see the
+safety properties below for why a label cannot do that job.
 
 **The workflow merges with a GitHub App token, not `GITHUB_TOKEN`.** This is a
 hard requirement, not a preference. GitHub does not start new workflow runs from
@@ -874,15 +875,15 @@ design — if minting fails, every other step is skipped by the implicit
   Eligibility therefore comes from the commits, not from who triggered the run —
   GitHub only cancels auto-merge itself for pushes by users *without* write access,
   so a maintainer's push would otherwise ride in on an earlier arm. Provenance runs
-  on the `workflow_run` pass too, or a human push followed by a green CI run would
-  re-arm off the stale `automerge` label.
+  on the `workflow_run` pass too, so a human push followed by a green CI run cannot
+  re-arm even if that head somehow carries a classification marker.
 - **Per-PR, per-event `concurrency` group with `cancel-in-progress`.** Without it,
   two overlapping `synchronize` runs can interleave so the older one re-arms against
   a head it never validated. The group is scoped per event as well as per PR: one
   shared group would let a `workflow_run` CI completion cancel the
-  `pull_request_target` run that fetches metadata and writes the labels, and since
-  the retry pass reads those labels rather than re-deriving metadata, the PR would
-  be left unarmed — permanently so in a merge-queue repo, where the
+  `pull_request_target` run that classifies the head and records its marker, and
+  since the retry pass reads that marker rather than re-deriving metadata, the PR
+  would be left unarmed — permanently so in a merge-queue repo, where the
   `pull_request_target` path defers enqueueing to the retry.
 - **Auto-merge is disarmed before reclassification, not after.** GitHub keeps
   auto-merge armed when the pusher has write access — it disables it automatically
