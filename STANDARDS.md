@@ -775,9 +775,8 @@ ecosystem — is left for a human rather than merged by default. The workflow lo
 the reason it declined, so the symptom is visible rather than silent.
 
 The reusable workflow also applies `dependencies` plus either `automerge` or
-`needs-human-review` so Dependabot queues stay auditable at a glance. To hold a
-single PR by hand, label it `do-not-merge` — the workflow never writes or removes
-that one. The
+`needs-human-review` so Dependabot queues stay auditable at a glance. Neither is a
+manual hold: to hold a single PR by hand, close it or use `@dependabot ignore`. The
 `automerge` label is applied for patch and minor only, because the `workflow_run`
 retry pass arms off that label instead of Dependabot metadata — the label has to
 mean exactly what the arm gate means.
@@ -893,13 +892,18 @@ design — if minting fails, every other step is skipped by the implicit
   posting is best-effort because the degraded fallback token has no `statuses: write`.
   The retry waits for the marker rather than refusing, because no further
   `workflow_run` event would arrive afterwards and a merge-queue repo would never
-  enqueue.
-- **`do-not-merge` is the manual hold; `automerge` and `needs-human-review` are
-  classifier-owned.** The workflow rewrites its own two labels on every
-  classification, so a hold placed with `needs-human-review` would survive only until
-  the next rebase or reopen. `do-not-merge` is never written or removed by the
-  workflow and is honoured on both paths, so adding it refuses the arm and, on
-  `pull_request_target`, leaves the cancel step to disarm anything already armed.
+  enqueue, and it decides on the marker alone — consulting a label as well would put
+  arming back on mutable state.
+- **There is no manual hold label, deliberately.** `automerge` and
+  `needs-human-review` are classifier-owned and rewritten on every classification, so
+  a hold placed with either survives only until the next rebase or reopen. A dedicated
+  hold label would not be enough on its own: the stubs subscribe to `opened`,
+  `reopened`, `synchronize` and `ready_for_review`, not `labeled`, so a hold added
+  while checks were pending would go unnoticed until the head next moved — and on a
+  queue-enabled repo, disabling auto-merge does not remove an existing queue entry,
+  which needs `dequeuePullRequest`. To hold a Dependabot PR durably, close it or use
+  `@dependabot ignore`; to stop one already armed, disable auto-merge on the PR, noting
+  the next classification re-arms it.
 - **Mutually exclusive labels are kept exclusive.** Applying `automerge` or
   `needs-human-review` removes the other one. Otherwise a PR that took a human
   commit and was then force-updated back to a bot-only patch head would carry both,
