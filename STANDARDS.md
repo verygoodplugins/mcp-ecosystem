@@ -813,9 +813,15 @@ Setup, once at org level:
   enqueue fails outright rather than degrading, because by then the mint has already
   succeeded.
 - `AUTOMERGE_APP_CLIENT_ID` and `AUTOMERGE_APP_PRIVATE_KEY` as **Actions secrets
-  and Dependabot secrets**. Both stores are needed: the job runs as Dependabot on
-  `opened`/`synchronize` and as a maintainer on `reopened`, and if secret
-  resolution depends on the actor those paths read different stores.
+  and Dependabot secrets**. The Actions store is the one that matters for this
+  workflow: Dependabot's secret restriction — Dependabot secrets populated, Actions
+  secrets unavailable — covers `pull_request`, `pull_request_review`,
+  `pull_request_review_comment`, `push`, `create`, `deployment` and
+  `deployment_status`, and reaches `pull_request_target` only when *the base ref of
+  the pull request was created by Dependabot*, which is not the case for a bump
+  opened against `main`. So a `pull_request_target` run on a Dependabot PR reads
+  Actions secrets normally. Setting the Dependabot store too is cheap insurance and
+  becomes necessary if a repo ever adds a `pull_request`-triggered path, so do both.
 - Every stub forwarding all three secrets explicitly, or the App secrets never reach
   the callee:
 
