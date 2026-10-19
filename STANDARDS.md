@@ -925,9 +925,12 @@ design — if minting fails, every other step is skipped by the implicit
   `@dependabot ignore`; to stop one already armed, disable auto-merge on the PR, noting
   the next classification re-arms it.
 - **Mutually exclusive labels are kept exclusive.** Applying `automerge` or
-  `needs-human-review` removes the other one. Otherwise a PR that took a human
-  commit and was then force-updated back to a bot-only patch head would carry both,
-  and the retry pass rejects anything labelled `needs-human-review`.
+  `needs-human-review` removes the other one, so the pair always reports a single
+  verdict. Otherwise a PR that took a human commit and was then force-updated back to
+  a bot-only patch head would carry both at once and the queue would be unreadable at
+  a glance. Nothing in the workflow gates on these labels — that is the point of the
+  commit-status marker above — so this is about keeping the audit trail honest, not
+  about enforcement.
 - **`!cancelled()` on that cancel step.** A custom `if:` otherwise carries an
   implicit `success() &&`, so a provenance or metadata failure would skip the
   cancel and leave auto-merge armed — failing open, which is the opposite of what
