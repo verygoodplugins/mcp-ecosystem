@@ -812,6 +812,13 @@ Setup, once at org level:
   resolution depends on the actor those paths read different stores.
 - Every stub using `secrets: inherit`, or the App secrets never reach the callee.
 
+A stub that pins the reusable workflow to an immutable SHA rather than `@main`
+(`emmail` does, deliberately, so privileged write access cannot track a floating
+branch) does not pick up changes to the reusable workflow until that SHA is
+bumped. That is the safer posture, but it has to be bumped by hand, and `emmail`
+is not in `server-inventory.json`, so template propagation does not reach it
+either.
+
 If the token cannot be minted the workflow **degrades rather than breaking**: it
 falls back to `GH_TOKEN`/`github.token`, emits a warning annotation and a step
 summary, and keeps auto-merging. Auto-merge still works; only the
@@ -823,20 +830,39 @@ design — if minting fails, every other step is skipped by the implicit
 **Safety properties of the reusable workflow** (change these only deliberately):
 
 - **Commit provenance.** Auto-merge is armed only when every commit on the PR head
-  is authored by `dependabot[bot]`, checked paginated and failing closed on an
-  unattributed commit (no login). Eligibility comes from who wrote the commits,
-  not who triggered the run — GitHub only cancels auto-merge itself for pushes by
-  users *without* write access, so a maintainer's push would otherwise ride in on
-  an earlier arm. Provenance runs on the `workflow_run` pass too, or a human push
-  followed by a green CI run would re-arm off the stale `automerge` label.
-- **Per-PR `concurrency` group with `cancel-in-progress`.** Without it, two
-  overlapping `synchronize` runs can interleave so the older one re-arms against a
-  head it never validated.
+  matches an allowlist of `author/committer/verified` triples — `dependabot[bot]`
+  authored, committed by `dependabot[bot]` or `web-flow`, and carrying a valid
+  GitHub signature — checked paginated and failing closed on anything else.
+  All three fields are needed. The author alone is not proof of origin, because an
+  amend or cherry-pick keeps the original author while whoever rewrote it becomes
+  the committer. The committer is not either: GitHub resolves `committer.login`
+  from the committer *email*, and `web-flow` is simply the account that owns
+  `noreply@github.com`, so anyone with push access can set `GIT_COMMITTER_EMAIL`
+  to it. Only the signature cannot be forged — Dependabot's commits are created
+  through the API and signed with GitHub's own key, and a maintainer signing under
+  that email with their own key fails verification because the address is not a
+  verified email on their account.
+  Eligibility therefore comes from the commits, not from who triggered the run —
+  GitHub only cancels auto-merge itself for pushes by users *without* write access,
+  so a maintainer's push would otherwise ride in on an earlier arm. Provenance runs
+  on the `workflow_run` pass too, or a human push followed by a green CI run would
+  re-arm off the stale `automerge` label.
+- **Per-PR, per-event `concurrency` group with `cancel-in-progress`.** Without it,
+  two overlapping `synchronize` runs can interleave so the older one re-arms against
+  a head it never validated. The group is scoped per event as well as per PR: one
+  shared group would let a `workflow_run` CI completion cancel the
+  `pull_request_target` run that fetches metadata and writes the labels, and since
+  the retry pass reads those labels rather than re-deriving metadata, the PR would
+  be left unarmed — permanently so in a merge-queue repo, where the
+  `pull_request_target` path defers enqueueing to the retry.
 - **An explicit cancel step**, which disarms auto-merge when a human commit lands
   or a rebase turns the bump into a major. It runs on `pull_request_target` only: a
   `workflow_run` completion reports that CI finished, not that anything changed, so
-  it has nothing to revoke — and letting it cancel would disarm a good bump whose
-  labelling run the concurrency group had just cancelled.
+  it has nothing to revoke. Head changes arrive as `synchronize` or `reopened`.
+- **Mutually exclusive labels are kept exclusive.** Applying `automerge` or
+  `needs-human-review` removes the other one. Otherwise a PR that took a human
+  commit and was then force-updated back to a bot-only patch head would carry both,
+  and the retry pass rejects anything labelled `needs-human-review`.
 - **`!cancelled()` on that cancel step.** A custom `if:` otherwise carries an
   implicit `success() &&`, so a provenance or metadata failure would skip the
   cancel and leave auto-merge armed — failing open, which is the opposite of what
