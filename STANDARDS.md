@@ -785,12 +785,27 @@ safety properties below for why a label cannot do that job.
 **The workflow merges with a GitHub App token, not `GITHUB_TOKEN`.** This is a
 hard requirement, not a preference. GitHub does not start new workflow runs from
 events caused by `GITHUB_TOKEN`, and that extends to the merge an auto-merge it
-armed performs. Measured on `mcp-automem`: three bumps auto-merged under
-`GITHUB_TOKEN` each produced **0** `event=push` workflow runs, while the human
-merges either side each produced **4** — CI, Release Please, Docs Dispatch and
-Security. So auto-merged bumps silently skipped the release-PR update, the
-push-to-main CI run that is the only thing testing bumps *in combination*, and
-the scheduled security scans.
+armed performs. Measured on `mcp-automem`, where the swap has shipped and run:
+
+| Merge | Token | `event=push` runs |
+| --- | --- | --- |
+| 5775c95, 07db972, 9ed9084 | `GITHUB_TOKEN` auto-merge | **0** |
+| 72bc31e, 7b45e959 | App token | **3** |
+| d2a2660, 06f6fb1 | human | **4** |
+
+So auto-merged bumps silently skipped the release-PR update, the push-to-main CI
+run that is the only thing testing bumps *in combination*, and the scheduled
+security scans. `7b45e959` is the end-to-end proof: an auto-merge armed by the App
+and merged by `vgp-dependabot-auto-merge[bot]`, where identical `GITHUB_TOKEN`
+auto-merges had produced nothing.
+
+**Compare against 0, not against a count.** The number of push-triggered workflows
+is per-repo, and varies within a repo. The 4 above is not a baseline: `mcp-automem`
+has three workflows on `push: branches: [main]` — `ci.yml`, `release-please.yml`,
+`security.yml` — and those two human merges each also cut a release, which pulls in
+`docs-dispatch.yml` as an inherited `event=push` run through a gated
+`workflow_call` from release-please. An ordinary bump there shows **3**, and 3 is
+not a failure.
 
 ```bash
 gh api "repos/OWNER/REPO/actions/runs?head_sha=SHA&event=push" --jq '.total_count'
@@ -813,15 +828,17 @@ Setup, once at org level:
   enqueue fails outright rather than degrading, because by then the mint has already
   succeeded.
 - `AUTOMERGE_APP_CLIENT_ID` and `AUTOMERGE_APP_PRIVATE_KEY` as **Actions secrets
-  and Dependabot secrets**. The Actions store is the one that matters for this
-  workflow: Dependabot's secret restriction — Dependabot secrets populated, Actions
-  secrets unavailable — covers `pull_request`, `pull_request_review`,
-  `pull_request_review_comment`, `push`, `create`, `deployment` and
-  `deployment_status`, and reaches `pull_request_target` only when *the base ref of
-  the pull request was created by Dependabot*, which is not the case for a bump
-  opened against `main`. So a `pull_request_target` run on a Dependabot PR reads
-  Actions secrets normally. Setting the Dependabot store too is cheap insurance and
-  becomes necessary if a repo ever adds a `pull_request`-triggered path, so do both.
+  and Dependabot secrets**, in both, always. Which store a Dependabot-triggered
+  `pull_request_target` run actually reads is not worth resolving: GitHub's docs list
+  the restriction (Dependabot secrets populated, Actions secrets unavailable) for
+  `pull_request`, `pull_request_review`, `pull_request_review_comment`, `push`,
+  `create`, `deployment` and `deployment_status`, and apply it to
+  `pull_request_target` only when *the base ref of the pull request was created by
+  Dependabot* — which a bump opened against `main` is not. Empirically, mcp-automem
+  run `39327021484` (a Dependabot-triggered `pull_request_target`) minted the token
+  successfully, but the secrets were in both stores, so it does not identify which
+  one was read. Setting both costs nothing and removes the question; it is also
+  required outright if a repo ever adds a `pull_request`-triggered path.
 - Every stub forwarding all three secrets explicitly, or the App secrets never reach
   the callee:
 
