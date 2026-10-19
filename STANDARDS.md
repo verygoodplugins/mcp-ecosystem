@@ -775,7 +775,9 @@ ecosystem — is left for a human rather than merged by default. The workflow lo
 the reason it declined, so the symptom is visible rather than silent.
 
 The reusable workflow also applies `dependencies` plus either `automerge` or
-`needs-human-review` so Dependabot queues stay auditable at a glance. The
+`needs-human-review` so Dependabot queues stay auditable at a glance. To hold a
+single PR by hand, label it `do-not-merge` — the workflow never writes or removes
+that one. The
 `automerge` label is applied for patch and minor only, because the `workflow_run`
 retry pass arms off that label instead of Dependabot metadata — the label has to
 mean exactly what the arm gate means.
@@ -889,9 +891,15 @@ design — if minting fails, every other step is skipped by the implicit
   report a rebased patch bump as permanently unclassified. The status is only ever
   posted as `success` and only when eligible, so it cannot appear as a red check, and
   posting is best-effort because the degraded fallback token has no `statuses: write`.
-  `needs-human-review` is still honoured as a manual override. The retry waits for the
-  marker rather than refusing, because no further `workflow_run` event would arrive
-  afterwards and a merge-queue repo would never enqueue.
+  The retry waits for the marker rather than refusing, because no further
+  `workflow_run` event would arrive afterwards and a merge-queue repo would never
+  enqueue.
+- **`do-not-merge` is the manual hold; `automerge` and `needs-human-review` are
+  classifier-owned.** The workflow rewrites its own two labels on every
+  classification, so a hold placed with `needs-human-review` would survive only until
+  the next rebase or reopen. `do-not-merge` is never written or removed by the
+  workflow and is honoured on both paths, so adding it refuses the arm and, on
+  `pull_request_target`, leaves the cancel step to disarm anything already armed.
 - **Mutually exclusive labels are kept exclusive.** Applying `automerge` or
   `needs-human-review` removes the other one. Otherwise a PR that took a human
   commit and was then force-updated back to a bot-only patch head would carry both,
