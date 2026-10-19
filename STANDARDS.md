@@ -800,12 +800,16 @@ reports its own `event=dynamic` update runs attached to the default branch.
 Setup, once at org level:
 
 - A GitHub App installed across the org, granted **Contents RW, Pull requests RW,
-  Issues RW, Workflows RW, Metadata R**. `actions/create-github-app-token` scopes
+  Issues RW, Workflows RW, Merge queues RW, Metadata R**. `actions/create-github-app-token` scopes
   the token it mints to its `permission-*` inputs, and requesting a permission the
   installation lacks fails the mint outright — so the App grants must be at least
   as wide as the workflow asks for. Workflows RW is required by any repo whose
   `dependabot.yml` includes the `github-actions` ecosystem; without it a bump
-  touching `.github/workflows/` cannot be merged.
+  touching `.github/workflows/` cannot be merged. Merge queues RW is for the
+  enqueue path: no repo has a queue enabled today, but granting it up front means
+  turning one on is a ruleset change rather than a token change, and without it the
+  enqueue fails outright rather than degrading, because by then the mint has already
+  succeeded.
 - `AUTOMERGE_APP_CLIENT_ID` and `AUTOMERGE_APP_PRIVATE_KEY` as **Actions secrets
   and Dependabot secrets**. Both stores are needed: the job runs as Dependabot on
   `opened`/`synchronize` and as a maintainer on `reopened`, and if secret
