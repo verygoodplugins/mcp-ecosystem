@@ -877,6 +877,18 @@ design — if minting fails, every other step is skipped by the implicit
   or a rebase turns the bump into a major. It runs on `pull_request_target` only: a
   `workflow_run` completion reports that CI finished, not that anything changed, so
   it has nothing to revoke. Head changes arrive as `synchronize` or `reopened`.
+- **The retry pass's label trust is bound to the head it is merging.** The
+  `workflow_run` pass cannot call `fetch-metadata`, so it reads the classification
+  the `pull_request_target` pass recorded as labels — and labels are mutable and not
+  bound to a commit. It therefore trusts them only once the newest `automerge` or
+  `needs-human-review` labelling is at least as recent as the head commit, and
+  re-reads the labels at that point. Without this, a head that changed from a patch
+  bump to a major could be merged off the previous head's `automerge` label whenever
+  CI finished before classification had relabelled: the event-scoped concurrency
+  groups stop the two runs cancelling each other, but they do not order the label
+  write before the read. The retry waits for classification rather than refusing,
+  because no further `workflow_run` event would arrive afterwards and a merge-queue
+  repo would never enqueue.
 - **Mutually exclusive labels are kept exclusive.** Applying `automerge` or
   `needs-human-review` removes the other one. Otherwise a PR that took a human
   commit and was then force-updated back to a bot-only patch head would carry both,
