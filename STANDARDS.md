@@ -874,8 +874,17 @@ design — if minting fails, every other step is skipped by the implicit
   the retry pass reads those labels rather than re-deriving metadata, the PR would
   be left unarmed — permanently so in a merge-queue repo, where the
   `pull_request_target` path defers enqueueing to the retry.
+- **Auto-merge is disarmed before reclassification, not after.** GitHub keeps
+  auto-merge armed when the pusher has write access — it disables it automatically
+  only for pushes by users *without* write permission — so from the moment a human
+  commit or a rebase into a major lands until the job reaches its cancel step, the
+  previous head's arm is still live, and a fast green required check could merge the
+  new head before it was ever classified. The workflow therefore revokes the arm at
+  the top of every `pull_request_target` run and re-arms only once the gate passes.
 - **An explicit cancel step**, which disarms auto-merge when a human commit lands
-  or a rebase turns the bump into a major. It runs on `pull_request_target` only: a
+  or a rebase turns the bump into a major. It is now a backstop to the disarm above —
+  the step that still runs under `!cancelled()` when classification failed, and where
+  a failed best-effort disarm gets a second attempt. It runs on `pull_request_target` only: a
   `workflow_run` completion reports that CI finished, not that anything changed, so
   it has nothing to revoke. Head changes arrive as `synchronize` or `reopened`.
 - **Classification is recorded on the head commit, not inferred from labels.** The
