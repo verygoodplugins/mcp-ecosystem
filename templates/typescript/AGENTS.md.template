@@ -26,7 +26,13 @@ npm run format         # Format source files with Prettier
   remains available without credentials; never log credential values.
 - Keep API access behind a focused client module and test it with mocked
   responses.
-- Before opening a change, run `npm run lint`, `npm run build`, and `npm test`.
+
+## Pull requests
+
+Read and follow the installed `babysit` skill
+(`~/.autovault/skills/babysit/SKILL.md`) for PR creation, hosted review, CI
+triage, and merge readiness. It is the canonical procedure; keep
+project-specific commands and contracts here.
 
 ## Layout
 
