@@ -546,7 +546,7 @@ Example:
    - Creates release PR with changelog
    - On the release tag, publishes to npm with OIDC Trusted Publishing (no npm secret)
    - Also publishes a GitHub Packages (`npm.pkg.github.com`) mirror via `GITHUB_TOKEN`; this job is `continue-on-error: true`, so npmjs success defines a successful release. See [PUBLISHING.md](./PUBLISHING.md#github-packages-mirror-typescript) for consumer-side caveats.
-   - After npm succeeds, publishes the release to the MCP Registry with GitHub OIDC; the `mcp-registry-publish` job depends on `npm-publish`.
+   - After npm succeeds, the MCP Registry job checks the exact package version is visible on npm and publishes with GitHub OIDC. It retries only an explicit registry validation rejection that the same npm package and version are not yet visible; ambiguous publish failures stop for investigation.
    - **Must use `RELEASE_PLEASE_TOKEN`** (org-level PAT) so the Release PR triggers CI workflows. PRs created by the default `GITHUB_TOKEN` don't trigger other workflows (GitHub security feature), which blocks required status checks.
    - Uses manifest mode (`release-please-config.json` + `.release-please-manifest.json`)
 
