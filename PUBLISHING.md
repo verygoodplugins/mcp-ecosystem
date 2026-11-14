@@ -221,6 +221,16 @@ unauthenticated and just works.
 
 ## MCP Registry Publishing
 
+For managed TypeScript releases, the MCP Registry job verifies that `package.json`
+and `server.json` identify the same npm package and version, then waits up to 20
+attempts for that exact version to appear on npm. It retries a registry publish
+only when the registry explicitly rejects that package and version as not yet
+visible on npm. Authentication failures, unexpected responses, and ambiguous
+network errors stop immediately: inspect the registry before rerunning a job
+that may already have published. If the visibility wait expires, confirm the
+version is available on npm and rerun only the failed registry job; do not
+republish the npm package.
+
 ### First-Time Setup (One-Time)
 
 1. **Clone and build the MCP Publisher CLI**:
