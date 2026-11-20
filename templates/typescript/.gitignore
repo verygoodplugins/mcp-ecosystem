@@ -10,6 +10,9 @@ dist/
 .env.*.local
 .mcpregistry_registry_token
 .mcpregistry_github_token
+.mcpregistry_*
+*.pem
+*.key
 
 # IDE
 .idea/

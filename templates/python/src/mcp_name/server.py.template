@@ -8,14 +8,19 @@ from typing import Any
 from dotenv import load_dotenv
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
-from mcp.types import TextContent, Tool
+from mcp.types import TextContent, Tool, ToolAnnotations
 
 load_dotenv()
 
-# Validate required environment variables
-API_KEY = os.getenv("API_KEY")
-if not API_KEY:
-    raise ValueError("Missing required API_KEY environment variable")
+
+
+def require_api_key() -> str:
+    """Read the credential lazily so tools/list works without configuration."""
+    api_key = os.getenv("{NAME_UPPER}_API_KEY")
+    if not api_key:
+        raise ValueError("Missing required {NAME_UPPER}_API_KEY environment variable")
+    return api_key
+
 
 server = Server("mcp-{name}")
 
@@ -27,6 +32,11 @@ async def list_tools() -> list[Tool]:
         Tool(
             name="example_tool",
             description="Example tool - replace with your actual tools",
+            annotations=ToolAnnotations(
+                title="Example tool",
+                readOnlyHint=True,
+                destructiveHint=False,
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -47,6 +57,7 @@ async def call_tool(tool_name: str, arguments: dict[str, Any]) -> list[TextConte
     try:
         match tool_name:
             case "example_tool":
+                require_api_key()
                 query = arguments.get("query", "")
                 # TODO: Implement your tool logic here
                 return [TextContent(type="text", text=f"Processed query: {query}")]
@@ -54,8 +65,12 @@ async def call_tool(tool_name: str, arguments: dict[str, Any]) -> list[TextConte
             case _:
                 raise ValueError(f"Unknown tool: {tool_name}")
 
-    except Exception as e:
+    except ValueError as e:
+        # Expected configuration/input errors carry safe, credential-free text.
         return [TextContent(type="text", text=f"Error: {e}")]
+    except Exception:
+        # Never echo upstream bodies, paths, or stack traces to the client.
+        return [TextContent(type="text", text="Error: request failed")]
 
 
 async def run_server():

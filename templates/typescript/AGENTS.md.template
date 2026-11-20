@@ -26,6 +26,12 @@ npm run format         # Format source files with Prettier
   remains available without credentials; never log credential values.
 - Keep API access behind a focused client module and test it with mocked
   responses.
+- Tool design follows mcp-ecosystem `docs/TOOL_DESIGN.md`: extend an
+  existing tool with a parameter or `action` before adding a tool, keep
+  descriptions short, declare `readOnlyHint`/`destructiveHint` honestly, and
+  make deletes recoverable (trash) by default.
+- Credentials follow `docs/CREDENTIALS_AND_SECURITY.md`: `{NAME_UPPER}_*` env
+  names, listed in `.env.example`, never logged or returned in errors.
 
 ## Pull requests
 

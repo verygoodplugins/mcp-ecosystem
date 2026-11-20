@@ -700,6 +700,28 @@ if [[ -f "$REPO_ROOT/.github/workflows/security.yml" ]]; then
 fi
 
 echo ""
+echo "🧭 Ecosystem standards (docs/TOOL_DESIGN.md, docs/CREDENTIALS_AND_SECURITY.md, docs/PLUGINS.md)..."
+echo "------------------------------------------------------------------------------------------------"
+
+if command -v node >/dev/null 2>&1; then
+    STANDARDS_OUTPUT="$(node "$SCRIPT_DIR/lib/audit-standards.mjs" "$REPO_ROOT" "$PACKAGE_ROOT" 2>&1 || echo "WARN|Standards audit failed to run")"
+    while IFS='|' read -r STANDARDS_LEVEL STANDARDS_MESSAGE; do
+        case "$STANDARDS_LEVEL" in
+            OK) echo "✅ $STANDARDS_MESSAGE" ;;
+            WARN)
+                echo "⚠️  $STANDARDS_MESSAGE"
+                ((WARNINGS += 1))
+                ;;
+            INFO) echo "ℹ️  $STANDARDS_MESSAGE" ;;
+            "") ;;
+            *) echo "ℹ️  $STANDARDS_LEVEL${STANDARDS_MESSAGE:+|$STANDARDS_MESSAGE}" ;;
+        esac
+    done <<< "$STANDARDS_OUTPUT"
+else
+    echo "ℹ️  Ecosystem standards audit skipped because Node is unavailable"
+fi
+
+echo ""
 echo "📦 Desktop Extension (optional)..."
 echo "-----------------------------------"
 

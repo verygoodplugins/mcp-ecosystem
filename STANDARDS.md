@@ -2,6 +2,22 @@
 
 This document defines the coding standards for all Very Good Plugins MCP servers.
 
+## Single Source of Truth
+
+This repository is the upstream for every VGP MCP server. A standard changes here first, is encoded in `config/ecosystem-policy.json` and the templates, is checked by `scripts/audit-server.sh`, and reaches each server through `scripts/propagate-templates.sh` (managed files) or a tracked rollout (everything else). Servers do not fork a standard locally; they record a justified exception in their `AGENTS.md`.
+
+| Area | Standard | Machine-readable | Enforced by |
+| ---- | -------- | ---------------- | ----------- |
+| Tool design (no tool bloat) | [`docs/TOOL_DESIGN.md`](docs/TOOL_DESIGN.md) | `standards.toolDesign` | audit (warn) |
+| Credentials and secrets | [`docs/CREDENTIALS_AND_SECURITY.md`](docs/CREDENTIALS_AND_SECURITY.md) §1 | `standards.credentials` | audit (warn), `.github/SECURITY.md` (managed) |
+| Remote transport and security | [`docs/CREDENTIALS_AND_SECURITY.md`](docs/CREDENTIALS_AND_SECURITY.md) §2 | `standards.remote` | audit (warn) |
+| Self-hosting recipes | [`docs/SELF_HOSTING.md`](docs/SELF_HOSTING.md) | - | review |
+| Cursor and Claude plugins | [`docs/PLUGINS.md`](docs/PLUGINS.md), `templates/plugin/` | `standards.plugin` | audit (warn), `validate-plugin.mjs` in server CI |
+| Docs and support | This file → Required Files, README Template | `standards.readme` | audit |
+| CI, release, security workflows | This file → CI/CD Requirements | `ciProfiles`, `releaseProfiles`, `securityProfiles` | managed files + audit (error) |
+
+The latest fleet-wide gap audit is [`docs/audits/2026-11-standards-gap-audit.md`](docs/audits/2026-11-standards-gap-audit.md).
+
 ## Quick Start
 
 The fastest way to create a new MCP server that meets all standards:
@@ -399,7 +415,8 @@ exclude_lines = [
 | `LICENSE`                                     | MIT or GPL-3.0 (consistent with other VGP projects)              |
 | `AGENTS.md`                                   | Host-neutral contributor and coding-agent guidance               |
 | `CLAUDE.md`                                   | Optional compatibility entry point linking to `AGENTS.md`        |
-| `CHANGELOG.md`                                | Version history; Release Please updates it for TypeScript releases |
+| `CHANGELOG.md`                                | Version history; Release Please updates it for TypeScript releases. Tool merges/renames include an old → new mapping table |
+| `.env.example`                                | Every env var the server reads, with empty values (never real credentials) |
 | `server.json`                                 | MCP Registry manifest                                            |
 | `.github/workflows/ci.yml`                    | Test and lint on PR                                              |
 | `.github/workflows/dependabot-auto-merge.yml` | Approve + enable auto-merge for safe Dependabot PRs              |
@@ -413,6 +430,10 @@ exclude_lines = [
 | `.github/ISSUE_TEMPLATE/bug_report.yml`       | Forms-style bug template                                         |
 | `.github/ISSUE_TEMPLATE/feature_request.yml`  | Forms-style feature template                                     |
 | `.github/ISSUE_TEMPLATE/config.yml`           | Disables blank issues; routes security reports to Advisories     |
+
+Optional: `plugins/<brand>/` with Cursor and Claude Code manifests plus root `.cursor-plugin/marketplace.json` and `.claude-plugin/marketplace.json` (see [`docs/PLUGINS.md`](docs/PLUGINS.md)).
+
+README sections required by the audit: **Configuration** (env vars, required scopes), **Security** (how credentials are handled, link to `SECURITY.md`), and **Support**. Remote-capable servers add a **Remote** section (endpoint, caller keys, health URL).
 
 ### README.md Template
 
@@ -438,7 +459,7 @@ npx @verygoodplugins/mcp-{name}
 "command": "npx",
 "args": ["@verygoodplugins/mcp-{name}"],
 "env": {
-"API_KEY": "your_api_key"
+"{SERVICE}_API_KEY": "your_api_key"
 }
 }
 }
@@ -453,7 +474,7 @@ npx @verygoodplugins/mcp-{name}
 
 | Variable  | Required | Description             |
 | --------- | -------- | ----------------------- |
-| `API_KEY` | Yes      | API key for the service |
+| `{SERVICE}_API_KEY` | Yes | API key for the service |
 
 ## Development
 
@@ -1098,6 +1119,8 @@ async def test_tool_handler():
 
 ## Tool Schema Best Practices
 
+Surface design (how many tools, consolidation with params/actions, description length, trash-not-hard-delete) is defined in [`docs/TOOL_DESIGN.md`](docs/TOOL_DESIGN.md). This section covers the per-tool contract.
+
 Every v2 tool must have a Zod input schema, an output schema, a human title,
 and accurate annotations. Successful results must include both
 `structuredContent` and a JSON text block containing the same object. Expected
@@ -1146,11 +1169,15 @@ including an in-memory MCP client test when practical.
 
 ## Security Requirements
 
-1. **No hardcoded secrets** - Use environment variables
+The full standard is [`docs/CREDENTIALS_AND_SECURITY.md`](docs/CREDENTIALS_AND_SECURITY.md). Minimum bar:
+
+1. **No secrets in the repo, logs, or errors** - `<SERVICE>_*` environment variables, listed in `.env.example`; redact auth headers before logging
 2. **Input validation** - Validate all tool arguments
-3. **Error handling** - No stack traces in production
-4. **Dependency auditing** - Regular `npm audit` / `pip-audit`
-5. **OIDC publishing** - Use Trusted Publishing, no API tokens in secrets
+3. **Sanitized errors** - No stack traces, local paths, credentials, or raw upstream bodies in tool output
+4. **Remote access** - Streamable HTTP at `/mcp`, unauthenticated `/health`, per-caller bearer keys with constant-time comparison, per-caller rate limits, Host-header validation, loopback by default
+5. **Rotation** - Every credential rotates without a code change
+6. **Dependency auditing** - Regular `npm audit` / `pip-audit`
+7. **OIDC publishing** - Use Trusted Publishing, no API tokens in secrets
 
 ---
 

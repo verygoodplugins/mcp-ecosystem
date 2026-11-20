@@ -5,3 +5,6 @@
 
 # Local agent-planning artifacts are not repository documentation.
 docs/superpowers/
+
+# Plugin template ships a Claude Code MCP config (no secrets).
+!templates/plugin/plugins/BRAND/.mcp.json

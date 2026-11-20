@@ -1,0 +1,30 @@
+{
+  "name": "{brand}",
+  "version": "{version}",
+  "description": "{description} Unofficial; not affiliated with {Brand}.",
+  "author": {
+    "name": "Very Good Plugins",
+    "email": "info@verygoodplugins.com",
+    "url": "https://github.com/verygoodplugins"
+  },
+  "homepage": "https://github.com/verygoodplugins/mcp-{name}",
+  "repository": "https://github.com/verygoodplugins/mcp-{name}",
+  "license": "MIT",
+  "keywords": ["{brand}", "mcp"],
+  "mcpServers": "./.mcp.json",
+  "userConfig": {
+    "mcp_url": {
+      "type": "string",
+      "title": "{Brand} MCP URL",
+      "description": "Streamable HTTP endpoint ending in /mcp.",
+      "required": true
+    },
+    "caller_key": {
+      "type": "string",
+      "title": "{Brand} caller key",
+      "description": "Bearer key issued to this client. Never commit it.",
+      "sensitive": true,
+      "required": true
+    }
+  }
+}
