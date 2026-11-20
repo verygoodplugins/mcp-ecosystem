@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "{brand}": {
+      "type": "http",
+      "url": "${user_config.mcp_url}",
+      "headers": {
+        "Authorization": "Bearer ${user_config.caller_key}"
+      }
+    }
+  }
+}
