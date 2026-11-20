@@ -1,0 +1,16 @@
+---
+description: {Brand} MCP - read first, confirm before destructive actions
+alwaysApply: false
+---
+
+# {Brand}
+
+Use the `{brand}` MCP server for {Brand} work. Discover the live tool list
+before the first call; use tool names exactly as registered.
+
+- Read before you write: look the target up by ID with a read-only tool.
+- Confirm with the user before any tool marked destructive, and before
+  sending anything outward.
+- Deletes go to trash; say so, and offer restore.
+- Never print, store, or ask for credentials in chat. They are configured in
+  the plugin settings.

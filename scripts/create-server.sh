@@ -85,11 +85,13 @@ escape_sed_replacement() {
 # Create placeholder values
 NAME="$SERVER_NAME"
 NAME_UNDERSCORE="${SERVER_NAME//-/_}"  # Replace hyphens with underscores for Python
+NAME_UPPER="$(printf '%s' "$NAME_UNDERSCORE" | tr '[:lower:]' '[:upper:]')"  # Env var prefix
 NAME_CAPITALIZED="$(echo "$SERVER_NAME" | sed 's/-/ /g' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)} 1' | sed 's/ //g')"
 REPO_SLUG="$DEFAULT_GITHUB_ORG/mcp-$NAME"
 NAME_SED="$(escape_sed_replacement "$NAME")"
 NAME_CAPITALIZED_SED="$(escape_sed_replacement "$NAME_CAPITALIZED")"
 NAME_UNDERSCORE_SED="$(escape_sed_replacement "$NAME_UNDERSCORE")"
+NAME_UPPER_SED="$(escape_sed_replacement "$NAME_UPPER")"
 SERVER_DESC_SED="$(escape_sed_replacement "$SERVER_DESC")"
 REPO_SLUG_SED="$(escape_sed_replacement "$REPO_SLUG")"
 
@@ -114,6 +116,7 @@ process_template() {
     sed -e "s/{name}/$NAME_SED/g" \
         -e "s/{Name}/$NAME_CAPITALIZED_SED/g" \
         -e "s/{name_underscore}/$NAME_UNDERSCORE_SED/g" \
+        -e "s/{NAME_UPPER}/$NAME_UPPER_SED/g" \
         -e "s/{description}/$SERVER_DESC_SED/g" \
         -e "s/{Brief description under 100 characters}/$SERVER_DESC_SED/g" \
         -e "s/{repo_slug}/$REPO_SLUG_SED/g" \
@@ -158,6 +161,7 @@ if [[ "$SERVER_TYPE" == "typescript" ]]; then
     process_template "$TEMPLATE_DIR/typescript/AGENTS.md.template" "$OUTPUT_DIR/AGENTS.md"
     process_template "$TEMPLATE_DIR/typescript/CLAUDE.md.template" "$OUTPUT_DIR/CLAUDE.md"
     process_template "$TEMPLATE_DIR/typescript/README.md.template" "$OUTPUT_DIR/README.md"
+    process_template "$TEMPLATE_DIR/typescript/.env.example.template" "$OUTPUT_DIR/.env.example"
     process_template "$TEMPLATE_DIR/typescript/LICENSE.template" "$OUTPUT_DIR/LICENSE"
     process_template "$TEMPLATE_DIR/typescript/server.json.template" "$OUTPUT_DIR/server.json"
     process_template "$TEMPLATE_DIR/typescript/tests/index.test.ts.template" "$OUTPUT_DIR/tests/index.test.ts"
@@ -195,6 +199,7 @@ else
     process_template "$TEMPLATE_DIR/python/AGENTS.md.template" "$OUTPUT_DIR/AGENTS.md"
     process_template "$TEMPLATE_DIR/python/CLAUDE.md.template" "$OUTPUT_DIR/CLAUDE.md"
     process_template "$TEMPLATE_DIR/python/README.md.template" "$OUTPUT_DIR/README.md"
+    process_template "$TEMPLATE_DIR/python/.env.example.template" "$OUTPUT_DIR/.env.example"
     process_template "$TEMPLATE_DIR/python/LICENSE.template" "$OUTPUT_DIR/LICENSE"
     process_template "$TEMPLATE_DIR/python/server.json.template" "$OUTPUT_DIR/server.json"
     process_template "$TEMPLATE_DIR/python/tests/test_server.py.template" "$OUTPUT_DIR/tests/test_server.py"

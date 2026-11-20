@@ -1,0 +1,18 @@
+{
+  "name": "verygoodplugins-mcp-{name}",
+  "owner": {
+    "name": "Very Good Plugins",
+    "email": "info@verygoodplugins.com",
+    "url": "https://github.com/verygoodplugins"
+  },
+  "description": "{Brand} plugin for Claude Code by Very Good Plugins.",
+  "plugins": [
+    {
+      "name": "{brand}",
+      "source": "./plugins/{brand}",
+      "description": "{description}",
+      "version": "{version}",
+      "author": { "name": "Very Good Plugins" }
+    }
+  ]
+}

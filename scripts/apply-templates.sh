@@ -118,14 +118,16 @@ render_agents_template() {
         server_description="an MCP (Model Context Protocol) server"
     fi
 
-    local escaped_name escaped_description escaped_underscore
+    local escaped_name escaped_description escaped_underscore escaped_upper
     escaped_name="$(escape_sed_replacement "$server_name")"
     escaped_description="$(escape_sed_replacement "$server_description")"
     escaped_underscore="$(escape_sed_replacement "${server_name//-/_}")"
+    escaped_upper="$(escape_sed_replacement "$(printf '%s' "${server_name//-/_}" | tr '[:lower:]' '[:upper:]')")"
 
     sed \
         -e "s/{name}/$escaped_name/g" \
         -e "s/{name_underscore}/$escaped_underscore/g" \
+        -e "s/{NAME_UPPER}/$escaped_upper/g" \
         -e "s/{description}/$escaped_description/g" \
         "$src" > "$dest"
     echo "✅ Created AGENTS.md"

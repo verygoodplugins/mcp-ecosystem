@@ -9,9 +9,9 @@ process.env.DOTENV_CONFIG_QUIET = 'true';
 config({ quiet: true });
 
 function requireApiKey(): string {
-  const apiKey = process.env.API_KEY?.trim();
+  const apiKey = process.env.{NAME_UPPER}_API_KEY?.trim();
   if (!apiKey) {
-    throw new Error('Missing required API_KEY environment variable.');
+    throw new Error('Missing required {NAME_UPPER}_API_KEY environment variable.');
   }
   return apiKey;
 }

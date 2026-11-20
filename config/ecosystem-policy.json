@@ -308,5 +308,63 @@
       "banditContinueOnError": false,
       "banditTargetMode": "src"
     }
+  },
+  "standards": {
+    "version": "2026-11",
+    "docs": {
+      "credentials": "docs/CREDENTIALS_AND_SECURITY.md",
+      "toolDesign": "docs/TOOL_DESIGN.md",
+      "plugins": "docs/PLUGINS.md",
+      "selfHosting": "docs/SELF_HOSTING.md"
+    },
+    "toolDesign": {
+      "targetTools": 15,
+      "warnAboveTools": 20,
+      "targetDescriptionChars": 300,
+      "warnAboveDescriptionChars": 600,
+      "requiredAnnotations": ["readOnlyHint", "destructiveHint"],
+      "deleteMustMentionTrash": true,
+      "permanentDeleteEnv": "{SERVICE}_ALLOW_PERMANENT_DELETE",
+      "legacyToolsEnv": "{SERVICE}_LEGACY_TOOLS"
+    },
+    "credentials": {
+      "envPrefix": "{SERVICE}_",
+      "forbiddenEnvNames": [
+        "API_KEY",
+        "API_TOKEN",
+        "TOKEN",
+        "SECRET",
+        "PASSWORD",
+        "USERNAME",
+        "MCP_HTTP_AUTH_TOKEN"
+      ],
+      "callerKeysEnv": "{SERVICE}_HTTP_CALLER_KEYS",
+      "callerKeysFileEnv": "{SERVICE}_HTTP_CALLER_KEYS_FILE",
+      "requireEnvExample": true
+    },
+    "remote": {
+      "mcpPath": "/mcp",
+      "healthPath": "/health",
+      "healthAliases": ["/healthz"],
+      "defaultHost": "127.0.0.1",
+      "defaultRateLimitPerMinute": 600,
+      "requireConstantTimeAuth": true,
+      "requireHostValidation": true,
+      "requireRateLimit": true
+    },
+    "readme": {
+      "requiredSections": ["Configuration", "Security", "Support"]
+    },
+    "plugin": {
+      "layout": "in-repo",
+      "pluginRoot": "plugins/{brand}",
+      "manifests": [".cursor-plugin/plugin.json", ".claude-plugin/plugin.json"],
+      "marketplaces": [
+        ".cursor-plugin/marketplace.json",
+        ".claude-plugin/marketplace.json"
+      ],
+      "standaloneRepoName": "{brand}-cursor-plugin",
+      "template": "templates/plugin"
+    }
   }
 }

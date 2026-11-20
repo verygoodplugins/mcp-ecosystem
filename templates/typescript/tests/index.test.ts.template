@@ -30,7 +30,7 @@ describe('mcp-{name}', () => {
   it('does not write to stdout on startup', async () => {
     const entry = resolve(process.cwd(), 'src/index.ts');
     const child = spawn(process.execPath, ['--import', 'tsx', entry], {
-      env: { ...process.env, API_KEY: 'test-key' },
+      env: { ...process.env, {NAME_UPPER}_API_KEY: 'test-key' },
       stdio: ['pipe', 'pipe', 'pipe'],
     });
 

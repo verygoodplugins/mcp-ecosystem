@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "{brand}": {
+      "url": "${{SERVICE}_MCP_URL}",
+      "headers": {
+        "Authorization": "Bearer ${{SERVICE}_HTTP_CALLER_KEY}",
+        "Accept": "application/json, text/event-stream"
+      }
+    }
+  }
+}

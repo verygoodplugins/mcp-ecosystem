@@ -25,6 +25,12 @@ mcp-ecosystem/
 ├── README.md                    # This file
 ├── STANDARDS.md                 # Coding standards for all servers
 ├── PUBLISHING.md                # Publishing checklist
+├── docs/
+│   ├── TOOL_DESIGN.md           # Tool surface standard (no tool bloat)
+│   ├── CREDENTIALS_AND_SECURITY.md # Secrets, remote transport, auth
+│   ├── PLUGINS.md               # Cursor + Claude Code plugin standard
+│   ├── SELF_HOSTING.md          # Remote deployment recipes
+│   └── audits/                  # Fleet gap audits
 ├── config/
 │   └── ecosystem-policy.json    # Machine-readable repo profiles and policy
 ├── templates/
@@ -34,6 +40,7 @@ mcp-ecosystem/
 │   │       ├── dependabot-auto-merge.yml
 │   │       ├── release-please.yml
 │   │       └── security.yml
+│   ├── plugin/                  # Cursor + Claude Code plugin skeleton
 │   └── python/                  # Templates for Python MCP servers
 │       └── .github/workflows/
 │           ├── ci.yml
@@ -94,6 +101,9 @@ Key requirements:
 - **TypeScript:** Node.js >=24, ES2022, strict mode, Vitest, release-please
 - **Python:** Python ≥3.11, pyproject.toml, pytest, ruff
 - **All:** CI/CD, security scanning, MCP Registry, UTM tracking
+- **Tools:** ≤15 per server, extend with params/actions, honest annotations, trash not hard delete ([TOOL_DESIGN.md](./docs/TOOL_DESIGN.md))
+- **Secrets and remote:** `<SERVICE>_*` env vars, never logged; Streamable HTTP `/mcp` with per-caller bearer keys ([CREDENTIALS_AND_SECURITY.md](./docs/CREDENTIALS_AND_SECURITY.md))
+- **Plugins:** live in the server repo under `plugins/<brand>/` ([PLUGINS.md](./docs/PLUGINS.md))
 
 ## Source Of Truth
 

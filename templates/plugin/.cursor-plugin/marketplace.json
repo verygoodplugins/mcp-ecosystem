@@ -1,0 +1,14 @@
+{
+  "name": "verygoodplugins-mcp-{name}",
+  "owner": { "name": "Very Good Plugins", "email": "info@verygoodplugins.com" },
+  "metadata": {
+    "description": "{Brand} plugin for Cursor by Very Good Plugins."
+  },
+  "plugins": [
+    {
+      "name": "{brand}",
+      "source": "plugins/{brand}",
+      "description": "{description}"
+    }
+  ]
+}

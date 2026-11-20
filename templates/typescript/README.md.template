@@ -21,7 +21,7 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
       "command": "npx",
       "args": ["@verygoodplugins/mcp-{name}"],
       "env": {
-        "API_KEY": "your_api_key"
+        "{NAME_UPPER}_API_KEY": "your_api_key"
       }
     }
   }
@@ -36,7 +36,13 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `API_KEY` | Yes | API key for the service |
+| `{NAME_UPPER}_API_KEY` | Yes | API key for the service |
+
+## Security
+
+- Credentials are read from environment variables only. Copy `.env.example`, never commit `.env`.
+- Credentials never appear in logs, tool output, or errors.
+- Report vulnerabilities privately: see [SECURITY.md](.github/SECURITY.md).
 
 ## Development
 
