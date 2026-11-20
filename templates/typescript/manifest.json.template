@@ -26,7 +26,7 @@
       "command": "node",
       "args": ["${__dirname}/dist/index.js"],
       "env": {
-        "API_KEY": "${user_config.api_key}"
+        "{NAME_UPPER}_API_KEY": "${user_config.api_key}"
       }
     }
   },
