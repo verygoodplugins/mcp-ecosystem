@@ -144,6 +144,7 @@ test("plugin checks catch drift between manifests, marketplaces, and tools", () 
     "plugins/x/.claude-plugin/plugin.json": {
       name: "x",
       version: "1.2.0",
+      mcpServers: "./.mcp.json",
       userConfig: {
         caller_key: { type: "string", title: "Key", description: "Key" },
       },
@@ -161,6 +162,7 @@ test("plugin checks catch drift between manifests, marketplaces, and tools", () 
   );
   assert.match(text, /unknown tool x_gone/);
   assert.match(text, /userConfig\.caller_key .* sensitive: true/);
+  assert.match(text, /mcpServers file not found: \.\/\.mcp\.json/);
 });
 
 test("plugin template validator stays identical to the audit library", () => {

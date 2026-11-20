@@ -201,7 +201,16 @@ export function checkPlugins(
             }
           }
         }
-      } else if (manifest.userConfig) {
+      } else if (
+        typeof manifest.mcpServers === "string" &&
+        !/^https?:/.test(manifest.mcpServers) &&
+        !fs.existsSync(path.join(dir, manifest.mcpServers))
+      ) {
+        findings.push(
+          `${rel} mcpServers file not found: ${manifest.mcpServers}`,
+        );
+      }
+      if (manifestRel.startsWith(".claude-plugin") && manifest.userConfig) {
         for (const [key, option] of Object.entries(manifest.userConfig)) {
           if (
             /(key|secret|token|password)$/i.test(key) &&
